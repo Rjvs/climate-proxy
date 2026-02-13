@@ -1,16 +1,16 @@
 # Architecture Overview
 
-This document describes the technical architecture of the Integration Blueprint custom component for Home Assistant.
+This document describes the technical architecture of the Climate Device Proxy custom component for Home Assistant.
 
 ## Directory Structure
 
 ```text
-custom_components/ha_integration_domain/
+custom_components/climate_proxy/
 ├── __init__.py              # Integration setup and unload
 ├── config_flow.py           # Config flow entry point
 ├── const.py                 # Constants and configuration keys
 ├── coordinator/             # Data update coordinator package
-│   ├── __init__.py          # Exports IntegrationBlueprintDataUpdateCoordinator
+│   ├── __init__.py          # Exports ClimateProxyDataUpdateCoordinator
 │   ├── base.py              # Main coordinator class
 │   ├── data_processing.py   # Data validation and transformation
 │   ├── error_handling.py    # Error recovery and retry logic
@@ -18,7 +18,7 @@ custom_components/ha_integration_domain/
 ├── data.py                  # Data classes and type definitions
 ├── diagnostics.py           # Diagnostic data for troubleshooting
 ├── entity/                  # Base entity package
-│   ├── __init__.py          # Exports IntegrationBlueprintEntity
+│   ├── __init__.py          # Exports ClimateProxyEntity
 │   └── base.py              # Base entity class implementation
 ├── manifest.json            # Integration metadata
 ├── repairs.py               # Repair flows for fixing issues
@@ -65,7 +65,7 @@ updates to all entities. It is organized as a package with separate modules for 
 
 **Package structure:**
 
-- `base.py` - Main coordinator class (`IntegrationBlueprintDataUpdateCoordinator`)
+- `base.py` - Main coordinator class (`ClimateProxyDataUpdateCoordinator`)
 - `data_processing.py` - Data validation, transformation, and caching utilities
 - `error_handling.py` - Error recovery strategies, retry logic, and circuit breaker patterns
 - `listeners.py` - Entity callbacks, event listeners, and performance monitoring
@@ -79,7 +79,7 @@ updates to all entities. It is organized as a package with separate modules for 
 - Data validation and transformation before distribution
 - Performance monitoring and metrics
 
-**Key class:** `IntegrationBlueprintDataUpdateCoordinator` (exported from `coordinator/__init__.py`)
+**Key class:** `ClimateProxyDataUpdateCoordinator` (exported from `coordinator/__init__.py`)
 
 **Design rationale:**
 
@@ -101,7 +101,7 @@ Handles all communication with external APIs or devices. Implements:
 - Authentication handling
 - Error translation to custom exceptions
 
-**Key class:** `IntegrationBlueprintApiClient`
+**Key class:** `ClimateProxyApiClient`
 
 ### Config Flow
 
@@ -127,8 +127,8 @@ is organized modularly to support complex flows without becoming monolithic.
 
 **Key classes:**
 
-- `IntegrationBlueprintConfigFlowHandler` (main flow)
-- `IntegrationBlueprintOptionsFlow` (options)
+- `ClimateProxyConfigFlowHandler` (main flow)
+- `ClimateProxyOptionsFlow` (options)
 
 ### Base Entity
 
@@ -141,7 +141,7 @@ Provides common functionality for all entities in the integration:
 - Coordinator integration
 - Availability tracking
 
-**Key class:** `IntegrationBlueprintEntity` (in `entity/base.py`)
+**Key class:** `ClimateProxyEntity` (in `entity/base.py`)
 
 ## Platform Organization
 
@@ -156,7 +156,7 @@ Each platform (sensor, binary_sensor, switch, etc.) follows this pattern:
 Platform entities inherit from both:
 
 1. Home Assistant platform base (e.g., `SensorEntity`)
-2. `IntegrationBlueprintEntity` for common functionality
+2. `ClimateProxyEntity` for common functionality
 
 ## Data Flow
 
@@ -272,7 +272,7 @@ Once a project is initialized, Copilot Coding Agent:
 - Creates pull requests with comprehensive implementations
 - Can iterate based on test failures and linter errors
 
-**Agent-specific instructions (since November 2025):**
+**Agent-specific instructions (since November 2026):**
 
 Use `excludeAgent` frontmatter to control which agents use specific instructions:
 
@@ -295,9 +295,9 @@ To add new functionality:
 
 ### Adding a New Platform
 
-1. Create directory: `custom_components/ha_integration_domain/<platform>/`
+1. Create directory: `custom_components/climate_proxy/<platform>/`
 2. Implement `__init__.py` with `async_setup_entry()`
-3. Create entity classes inheriting from platform base + `IntegrationBlueprintEntity`
+3. Create entity classes inheriting from platform base + `ClimateProxyEntity`
 4. Add platform to `PLATFORMS` in `const.py`
 
 ### Adding a New Service Action
@@ -325,6 +325,6 @@ Tests mirror the source structure under `tests/`.
 Core dependencies (see `manifest.json`):
 
 - `aiohttp` - Async HTTP client
-- Home Assistant 2025.7.0+ - Platform requirements
+- Home Assistant 2026.7.0+ - Platform requirements
 
 Development dependencies (see `requirements_dev.txt`, `requirements_test.txt`).

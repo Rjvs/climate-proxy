@@ -1,0 +1,13 @@
+{
+  "domain": "climate_proxy",
+  "name": "Climate Device Proxy",
+  "codeowners": [
+    "@Rjvs"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/Rjvs/climate-proxy",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Rjvs/climate-proxy/issues",
+  "version": "0.1.0"
+}
