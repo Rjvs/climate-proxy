@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 
-from ..const import DOMAIN
+from ..const import DOMAIN, INTEGRATION_NAME
 from ..state_manager.entity_discovery import get_device_info_for_entity, get_underlying_device_id
 from .proxy_entity import ClimateProxyClimateEntity
 
@@ -34,14 +35,13 @@ async def async_setup_entry(
     device_info = DeviceInfo(
         identifiers={(DOMAIN, config_entry.entry_id)},
         name=config_entry.data["proxy_name"],
-        manufacturer="Climate Proxy",
+        manufacturer=INTEGRATION_NAME,
         model=f"Proxy for {manufacturer or 'Unknown'} {model or 'device'}",
         hw_version=hw_version,
         sw_version=sw_version,
     )
     if underlying_device_id:
         # Link proxy device to the underlying device in the HA device registry
-        from homeassistant.helpers import device_registry as dr
         device_reg = dr.async_get(hass)
         underlying_device = device_reg.async_get(underlying_device_id)
         if underlying_device:

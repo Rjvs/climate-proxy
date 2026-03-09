@@ -12,7 +12,6 @@ from ..const import (
     CONF_TEMPERATURE_SENSORS,
     DOMAIN,
     LOGGER,
-    PARALLEL_UPDATES,
 )
 from .proxy_entity import ClimateProxySensorEntity
 from .weighted_avg import WeightedAvgHumiditySensor, WeightedAvgTemperatureSensor
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
 
     from ..data import ClimateProxyConfigEntry
 
-PARALLEL_UPDATES = PARALLEL_UPDATES  # noqa: PLW0127
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(

@@ -8,12 +8,13 @@ Config flow for climate_proxy.
     4. async_step_humidity_sensors — pick humidity sensors (optional)
     5. async_step_humidity_weights — set weight per sensor (skipped if none selected)
 
+Reconfigure flow (async_step_reconfigure): change underlying entity or rename.
 Options flow runs steps 2–5 with current values pre-filled.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from homeassistant import config_entries
 
@@ -34,8 +35,6 @@ from .schemas.config import (
     get_user_schema,
 )
 
-if TYPE_CHECKING:
-    pass
 
 
 def _build_sensor_list(entity_ids: list[str], weights: dict[str, float]) -> list[dict[str, Any]]:
@@ -108,6 +107,41 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=get_user_schema(user_input),
+            errors=errors,
+        )
+
+    # ------------------------------------------------------------------
+    # Reconfigure: change underlying climate entity or rename
+    # ------------------------------------------------------------------
+
+    async def async_step_reconfigure(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Allow the user to change the underlying climate entity or rename the proxy."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            climate_entity_id = user_input[CONF_CLIMATE_ENTITY_ID]
+            if self.hass.states.get(climate_entity_id) is None:
+                errors[CONF_CLIMATE_ENTITY_ID] = "entity_not_found"
+            else:
+                return self.async_update_reload_and_abort(
+                    self._get_reconfigure_entry(),
+                    title=user_input[CONF_PROXY_NAME],
+                    data_updates={
+                        CONF_PROXY_NAME: user_input[CONF_PROXY_NAME],
+                        CONF_CLIMATE_ENTITY_ID: climate_entity_id,
+                    },
+                )
+
+        entry = self._get_reconfigure_entry()
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=get_user_schema({
+                CONF_PROXY_NAME: entry.data.get(CONF_PROXY_NAME, ""),
+                CONF_CLIMATE_ENTITY_ID: entry.data.get(CONF_CLIMATE_ENTITY_ID, ""),
+            }),
             errors=errors,
         )
 

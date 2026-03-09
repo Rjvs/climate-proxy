@@ -11,9 +11,12 @@ from homeassistant.components.climate.const import (
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
     ATTR_SWING_MODE,
+    ATTR_TARGET_TEMP_HIGH,
+    ATTR_TARGET_TEMP_LOW,
     SERVICE_SET_AUX_HEAT,
     SERVICE_SET_FAN_MODE,
     SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_HUMIDITY,
     SERVICE_SET_PRESET_MODE,
     SERVICE_SET_SWING_MODE,
     SERVICE_SET_TEMPERATURE,
@@ -72,8 +75,8 @@ def get_climate_corrections(
         if actual_temp is None or abs(float(actual_temp) - eff_temp) > TEMPERATURE_TOLERANCE:
             corrections[SERVICE_SET_TEMPERATURE] = {ATTR_TEMPERATURE: eff_temp}
     elif eff_low is not None and eff_high is not None:
-        actual_low = attrs.get("target_temp_low")
-        actual_high = attrs.get("target_temp_high")
+        actual_low = attrs.get(ATTR_TARGET_TEMP_LOW)
+        actual_high = attrs.get(ATTR_TARGET_TEMP_HIGH)
         needs_correction = (
             actual_low is None
             or actual_high is None
@@ -82,15 +85,15 @@ def get_climate_corrections(
         )
         if needs_correction:
             corrections[SERVICE_SET_TEMPERATURE] = {
-                "target_temp_low": eff_low,
-                "target_temp_high": eff_high,
+                ATTR_TARGET_TEMP_LOW: eff_low,
+                ATTR_TARGET_TEMP_HIGH: eff_high,
             }
 
     # Target humidity
     if desired_target_humidity is not None:
         actual_humidity = attrs.get("humidity")
         if actual_humidity is None or abs(float(actual_humidity) - desired_target_humidity) > HUMIDITY_TOLERANCE:
-            corrections["set_humidity"] = {"humidity": desired_target_humidity}
+            corrections[SERVICE_SET_HUMIDITY] = {"humidity": desired_target_humidity}
 
     # Preset mode
     if desired_preset_mode is not None:

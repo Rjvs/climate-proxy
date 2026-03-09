@@ -9,7 +9,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 
-from ..const import LOGGER, PARALLEL_UPDATES, RESTORE_KEY_CURRENT_OPTION
+from ..const import LOGGER, RESTORE_KEY_CURRENT_OPTION
 
 if TYPE_CHECKING:
     from homeassistant.core import Event, EventStateChangedData, State
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from ..data import ClimateProxyConfigEntry
     from ..state_manager import ClimateProxyStateManager
 
-PARALLEL_UPDATES = PARALLEL_UPDATES  # noqa: PLW0127
+PARALLEL_UPDATES = 0
 
 
 class ClimateProxySelectRestoreData(ExtraStoredData):
@@ -197,9 +197,8 @@ class ClimateProxySelectEntity(SelectEntity, RestoreEntity):
                 blocking=False,
             )
         else:
-            self._state_manager.queue_pending_state(service, kwargs)
             LOGGER.debug(
-                "Queued select command %s for %s (device unavailable)",
+                "Dropped select command %s for %s (unavailable); will enforce on reconnect",
                 service,
                 self._underlying_entity_id,
             )

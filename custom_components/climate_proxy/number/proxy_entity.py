@@ -9,7 +9,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 
-from ..const import LOGGER, PARALLEL_UPDATES, RESTORE_KEY_NATIVE_VALUE, TEMPERATURE_TOLERANCE
+from ..const import LOGGER, RESTORE_KEY_NATIVE_VALUE, TEMPERATURE_TOLERANCE
 
 if TYPE_CHECKING:
     from homeassistant.core import Event, EventStateChangedData, State
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from ..data import ClimateProxyConfigEntry
     from ..state_manager import ClimateProxyStateManager
 
-PARALLEL_UPDATES = PARALLEL_UPDATES  # noqa: PLW0127
+PARALLEL_UPDATES = 0
 
 
 class ClimateProxyNumberRestoreData(ExtraStoredData):
@@ -240,9 +240,8 @@ class ClimateProxyNumberEntity(NumberEntity, RestoreEntity):
                 blocking=False,
             )
         else:
-            self._state_manager.queue_pending_state(service, kwargs)
             LOGGER.debug(
-                "Queued number command %s for %s (device unavailable)",
+                "Dropped number command %s for %s (unavailable); will enforce on reconnect",
                 service,
                 self._underlying_entity_id,
             )

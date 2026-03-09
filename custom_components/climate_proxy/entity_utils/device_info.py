@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.helpers.device_registry import DeviceInfo
 
+from ..const import INTEGRATION_NAME
+
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
 
@@ -40,8 +42,8 @@ def create_device_info(
     """
     return DeviceInfo(
         identifiers={(config_entry.domain, config_entry.entry_id)},
-        name=name or "Climate Device Proxy",
-        manufacturer=manufacturer or "Climate Device Proxy",
+        name=name or INTEGRATION_NAME,
+        manufacturer=manufacturer or INTEGRATION_NAME,
         model=model or "Unknown",
         sw_version=sw_version,
     )

@@ -7,6 +7,7 @@ from logging import Logger, getLogger
 LOGGER: Logger = getLogger(__package__)
 
 DOMAIN = "climate_proxy"
+INTEGRATION_NAME = "Climate Proxy"
 
 # Config entry data keys (immutable after creation)
 CONF_CLIMATE_ENTITY_ID = "climate_entity_id"

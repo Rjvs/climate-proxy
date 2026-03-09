@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
-from ..const import LOGGER, PARALLEL_UPDATES
+from ..const import LOGGER
 
 if TYPE_CHECKING:
     from homeassistant.helpers.device_registry import DeviceInfo
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from ..data import ClimateProxyConfigEntry
     from ..state_manager import ClimateProxyStateManager
 
-PARALLEL_UPDATES = PARALLEL_UPDATES  # noqa: PLW0127
+PARALLEL_UPDATES = 0
 
 
 class ClimateProxyButtonEntity(ButtonEntity):

@@ -9,7 +9,7 @@ from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.helpers.entity import EntityCategory
 
 from ..climate.offset_calculator import calculate_weighted_average
-from ..const import CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, PARALLEL_UPDATES
+from ..const import CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS
 
 if TYPE_CHECKING:
     from homeassistant.helpers.device_registry import DeviceInfo
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from ..data import ClimateProxyConfigEntry
     from ..state_manager import ClimateProxyStateManager
 
-PARALLEL_UPDATES = PARALLEL_UPDATES  # noqa: PLW0127
+PARALLEL_UPDATES = 0
 
 
 class WeightedAvgTemperatureSensor(SensorEntity):

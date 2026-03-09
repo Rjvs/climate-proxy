@@ -9,7 +9,6 @@ from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event
 
-from ..const import PARALLEL_UPDATES
 
 if TYPE_CHECKING:
     from homeassistant.core import Event, EventStateChangedData
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from ..data import ClimateProxyConfigEntry
     from ..state_manager import ClimateProxyStateManager
 
-PARALLEL_UPDATES = PARALLEL_UPDATES  # noqa: PLW0127
+PARALLEL_UPDATES = 0
 
 
 class ClimateProxyBinarySensorEntity(BinarySensorEntity):

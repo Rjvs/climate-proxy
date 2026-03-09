@@ -10,6 +10,12 @@ from homeassistant.components.climate import HVACMode
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, State
 
+
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations):
+    """Auto-enable custom integrations for all tests."""
+    yield
+
 from custom_components.climate_proxy.const import (
     CONF_CLIMATE_ENTITY_ID,
     CONF_HUMIDITY_SENSORS,

@@ -12,12 +12,17 @@ from homeassistant.components.climate import (
     ATTR_SWING_MODE,
     ClimateEntity,
     ClimateEntityFeature,
+    HVACAction,
     HVACMode,
 )
 from homeassistant.components.climate.const import (
+    ATTR_HVAC_ACTION,
+    ATTR_TARGET_TEMP_HIGH,
+    ATTR_TARGET_TEMP_LOW,
     SERVICE_SET_AUX_HEAT,
     SERVICE_SET_FAN_MODE,
     SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_HUMIDITY,
     SERVICE_SET_PRESET_MODE,
     SERVICE_SET_SWING_MODE,
     SERVICE_SET_TEMPERATURE,
@@ -34,7 +39,6 @@ from ..const import (
     CONF_HUMIDITY_SENSORS,
     CONF_TEMPERATURE_SENSORS,
     LOGGER,
-    PARALLEL_UPDATES,
     RESTORE_KEY_AUX_HEAT,
     RESTORE_KEY_CURRENT_OFFSET,
     RESTORE_KEY_FAN_MODE,
@@ -70,7 +74,7 @@ if TYPE_CHECKING:
     from ..data import ClimateProxyConfigEntry
     from ..state_manager import ClimateProxyStateManager
 
-PARALLEL_UPDATES = PARALLEL_UPDATES  # noqa: PLW0127
+PARALLEL_UPDATES = 0
 
 
 class ClimateProxyRestoreData(ExtraStoredData):
@@ -148,6 +152,7 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         # Current readings (from underlying entity or external sensors)
         self._attr_current_temperature: float | None = None
         self._attr_current_humidity: float | None = None
+        self._attr_hvac_action: HVACAction | None = None
         self._current_offset: float = 0.0
 
         # Whether the underlying device was unavailable on the last event
@@ -266,8 +271,8 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         temp = kwargs.get(ATTR_TEMPERATURE)
-        low = kwargs.get("target_temp_low")
-        high = kwargs.get("target_temp_high")
+        low = kwargs.get(ATTR_TARGET_TEMP_LOW)
+        high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
         hvac = kwargs.get(ATTR_HVAC_MODE)
 
         if temp is not None:
@@ -289,9 +294,9 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         if effective_temp is not None:
             service_kwargs[ATTR_TEMPERATURE] = effective_temp
         if effective_low is not None:
-            service_kwargs["target_temp_low"] = effective_low
+            service_kwargs[ATTR_TARGET_TEMP_LOW] = effective_low
         if effective_high is not None:
-            service_kwargs["target_temp_high"] = effective_high
+            service_kwargs[ATTR_TARGET_TEMP_HIGH] = effective_high
         if hvac is not None:
             service_kwargs[ATTR_HVAC_MODE] = hvac
 
@@ -301,7 +306,7 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
     async def async_set_humidity(self, humidity: int) -> None:
         self._desired_target_humidity = float(humidity)
         self.async_write_ha_state()
-        await self._push_or_queue("set_humidity", {"humidity": humidity})
+        await self._push_or_queue(SERVICE_SET_HUMIDITY, {"humidity": humidity})
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         self._desired_fan_mode = fan_mode
@@ -356,9 +361,9 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
             if effective_temp is not None:
                 kwargs[ATTR_TEMPERATURE] = effective_temp
             if effective_low is not None:
-                kwargs["target_temp_low"] = effective_low
+                kwargs[ATTR_TARGET_TEMP_LOW] = effective_low
             if effective_high is not None:
-                kwargs["target_temp_high"] = effective_high
+                kwargs[ATTR_TARGET_TEMP_HIGH] = effective_high
             await self._push_or_queue(SERVICE_SET_TEMPERATURE, kwargs)
         self.async_write_ha_state()
 
@@ -424,6 +429,15 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         else:
             raw = state.attributes.get("current_humidity")
             self._attr_current_humidity = int(raw) if raw is not None else None
+
+        raw_action = state.attributes.get(ATTR_HVAC_ACTION)
+        if raw_action is not None:
+            try:
+                self._attr_hvac_action = HVACAction(raw_action)
+            except ValueError:
+                self._attr_hvac_action = None
+        else:
+            self._attr_hvac_action = None
 
     def _recalculate_offset(self) -> None:
         """Recalculate the temperature offset when external sensors are in use."""
