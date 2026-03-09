@@ -1,125 +1,117 @@
-"""
-Config flow schemas.
-
-Schemas for the main configuration flow steps:
-- User setup
-- Reconfiguration
-- Reauthentication
-
-When this file grows too large (>300 lines), consider splitting into:
-- user.py: User setup schemas
-- reauth.py: Reauthentication schemas
-- reconfigure.py: Reconfiguration schemas
-"""
+"""Config flow schemas for climate_proxy."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers import selector
 
+from ...const import (
+    CONF_CLIMATE_ENTITY_ID,
+    CONF_PROXY_NAME,
+    DEFAULT_SENSOR_WEIGHT,
+)
 
-def get_user_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
-    """
-    Get schema for user step (initial setup).
 
-    Args:
-        defaults: Optional dictionary of default values to pre-populate the form.
-
-    Returns:
-        Voluptuous schema for user credentials input.
-
-    """
+def get_user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+    """Schema for step 1: name + climate entity selection."""
     defaults = defaults or {}
     return vol.Schema(
         {
             vol.Required(
-                CONF_USERNAME,
-                default=defaults.get(CONF_USERNAME, vol.UNDEFINED),
+                CONF_PROXY_NAME,
+                default=defaults.get(CONF_PROXY_NAME, vol.UNDEFINED),
             ): selector.TextSelector(
-                selector.TextSelectorConfig(
-                    type=selector.TextSelectorType.TEXT,
-                ),
+                selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
             ),
-            vol.Required(CONF_PASSWORD): selector.TextSelector(
-                selector.TextSelectorConfig(
-                    type=selector.TextSelectorType.PASSWORD,
-                ),
+            vol.Required(
+                CONF_CLIMATE_ENTITY_ID,
+                default=defaults.get(CONF_CLIMATE_ENTITY_ID, vol.UNDEFINED),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="climate", multiple=False)
             ),
-        },
+        }
     )
 
 
-def get_reconfigure_schema(username: str) -> vol.Schema:
-    """
-    Get schema for reconfigure step.
-
-    Args:
-        username: Current username to pre-fill in the form.
-
-    Returns:
-        Voluptuous schema for reconfiguration.
-
-    """
+def get_temperature_sensors_schema(current: list[str] | None = None) -> vol.Schema:
+    """Schema for temperature sensor selection step."""
     return vol.Schema(
         {
-            vol.Required(
-                CONF_USERNAME,
-                default=username,
-            ): selector.TextSelector(
-                selector.TextSelectorConfig(
-                    type=selector.TextSelectorType.TEXT,
-                ),
+            vol.Optional(
+                "temperature_sensor_ids",
+                default=current or [],
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    device_class="temperature",
+                    multiple=True,
+                )
             ),
-            vol.Required(
-                CONF_PASSWORD,
-            ): selector.TextSelector(
-                selector.TextSelectorConfig(
-                    type=selector.TextSelectorType.PASSWORD,
-                ),
-            ),
-        },
+        }
     )
 
 
-def get_reauth_schema(username: str) -> vol.Schema:
-    """
-    Get schema for reauthentication step.
+def get_temperature_weights_schema(entity_ids: list[str], current_weights: dict[str, float] | None = None) -> vol.Schema:
+    """Dynamically build a schema with one weight input per selected temperature sensor."""
+    current_weights = current_weights or {}
+    schema_dict: dict[Any, Any] = {}
+    for entity_id in entity_ids:
+        schema_dict[vol.Optional(entity_id, default=current_weights.get(entity_id, DEFAULT_SENSOR_WEIGHT))] = (
+            selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0.1,
+                    max=10.0,
+                    step=0.1,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            )
+        )
+    return vol.Schema(schema_dict)
 
-    Args:
-        username: Current username to pre-fill in the form.
 
-    Returns:
-        Voluptuous schema for reauthentication.
-
-    """
+def get_humidity_sensors_schema(current: list[str] | None = None) -> vol.Schema:
+    """Schema for humidity sensor selection step."""
     return vol.Schema(
         {
-            vol.Required(
-                CONF_USERNAME,
-                default=username,
-            ): selector.TextSelector(
-                selector.TextSelectorConfig(
-                    type=selector.TextSelectorType.TEXT,
-                ),
+            vol.Optional(
+                "humidity_sensor_ids",
+                default=current or [],
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    device_class="humidity",
+                    multiple=True,
+                )
             ),
-            vol.Required(
-                CONF_PASSWORD,
-            ): selector.TextSelector(
-                selector.TextSelectorConfig(
-                    type=selector.TextSelectorType.PASSWORD,
-                ),
-            ),
-        },
+        }
     )
+
+
+def get_humidity_weights_schema(entity_ids: list[str], current_weights: dict[str, float] | None = None) -> vol.Schema:
+    """Dynamically build a schema with one weight input per selected humidity sensor."""
+    current_weights = current_weights or {}
+    schema_dict: dict[Any, Any] = {}
+    for entity_id in entity_ids:
+        schema_dict[vol.Optional(entity_id, default=current_weights.get(entity_id, DEFAULT_SENSOR_WEIGHT))] = (
+            selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0.1,
+                    max=10.0,
+                    step=0.1,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            )
+        )
+    return vol.Schema(schema_dict)
 
 
 __all__ = [
-    "get_reauth_schema",
-    "get_reconfigure_schema",
+    "get_humidity_sensors_schema",
+    "get_humidity_weights_schema",
+    "get_temperature_sensors_schema",
+    "get_temperature_weights_schema",
     "get_user_schema",
 ]

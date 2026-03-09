@@ -2,149 +2,96 @@
   "config": {
     "step": {
       "user": {
-        "description": "If you need help with the configuration have a look here: https://github.com/Rjvs/climate-proxy",
+        "title": "Set up Climate Proxy",
+        "description": "Create a virtual climate device that wraps a real thermostat. Climate Proxy will enforce your settings and optionally use external sensors for temperature and humidity readings.",
         "data": {
-          "username": "Username",
-          "password": "Password"
+          "proxy_name": "Name",
+          "climate_entity_id": "Climate entity to proxy"
+        },
+        "data_description": {
+          "proxy_name": "Friendly name for this proxy device",
+          "climate_entity_id": "The real thermostat or climate entity to wrap"
         }
       },
-      "reconfigure": {
-        "description": "Update the credentials for this integration.",
+      "temp_sensors": {
+        "title": "Temperature Sensors (optional)",
+        "description": "Select one or more temperature sensors to use as the reference temperature. Leave empty to use the thermostat's built-in sensor.",
         "data": {
-          "username": "Username",
-          "password": "Password"
+          "temperature_sensor_ids": "Temperature sensors"
         }
       },
-      "reauth_confirm": {
-        "title": "Reauthenticate Integration",
-        "description": "The credentials for {username} are no longer valid. Please provide updated credentials to restore access.",
+      "temp_weights": {
+        "title": "Temperature Sensor Weights",
+        "description": "Assign a relative weight to each selected temperature sensor. Higher weight means greater influence on the average.",
+        "data": {}
+      },
+      "humidity_sensors": {
+        "title": "Humidity Sensors (optional)",
+        "description": "Select one or more humidity sensors to use as the reference humidity. Leave empty to use the thermostat's built-in sensor.",
         "data": {
-          "username": "Username",
-          "password": "Password"
+          "humidity_sensor_ids": "Humidity sensors"
         }
+      },
+      "humidity_weights": {
+        "title": "Humidity Sensor Weights",
+        "description": "Assign a relative weight to each selected humidity sensor.",
+        "data": {}
       }
     },
     "error": {
-      "auth": "Username/Password is wrong.",
-      "connection": "Unable to connect to the server.",
-      "unknown": "Unknown error occurred."
+      "entity_not_found": "The selected climate entity does not exist. Please check your selection.",
+      "unknown": "An unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This entry is already configured."
+      "already_configured": "A proxy for this climate entity is already configured."
     }
   },
   "options": {
     "step": {
-      "init": {
-        "title": "Configure Integration Options",
-        "description": "Customize how this integration operates.",
+      "temp_sensors": {
+        "title": "Temperature Sensors",
+        "description": "Update the temperature sensors used as the reference reading.",
         "data": {
-          "update_interval_hours": "Update interval (hours)",
-          "enable_debugging": "Enable debug logging",
-          "custom_icon": "Custom icon (optional)"
-        },
-        "data_description": {
-          "update_interval_hours": "How often to refresh data from the API (0.25 to 24 hours)",
-          "enable_debugging": "Enable detailed debug logging for troubleshooting",
-          "custom_icon": "Override the default icon for entities (optional)"
+          "temperature_sensor_ids": "Temperature sensors"
         }
+      },
+      "temp_weights": {
+        "title": "Temperature Sensor Weights",
+        "description": "Update the relative weight for each temperature sensor.",
+        "data": {}
+      },
+      "humidity_sensors": {
+        "title": "Humidity Sensors",
+        "description": "Update the humidity sensors used as the reference reading.",
+        "data": {
+          "humidity_sensor_ids": "Humidity sensors"
+        }
+      },
+      "humidity_weights": {
+        "title": "Humidity Sensor Weights",
+        "description": "Update the relative weight for each humidity sensor.",
+        "data": {}
       }
-    }
-  },
-  "exceptions": {
-    "authentication_failed": {
-      "message": "Authentication failed during data update."
-    },
-    "update_failed": {
-      "message": "Failed to update data from the server."
-    },
-    "switch_turn_on_failed": {
-      "message": "Failed to turn on the switch."
-    },
-    "switch_turn_off_failed": {
-      "message": "Failed to turn off the switch."
-    },
-    "number_set_failed": {
-      "message": "Failed to set the target value."
     }
   },
   "entity": {
     "sensor": {
-      "air_quality_index": {
-        "name": "Air Quality Index"
+      "weighted_avg_temperature": {
+        "name": "Reference Temperature"
       },
-      "pm25": {
-        "name": "PM2.5"
-      },
-      "filter_life": {
-        "name": "Filter Life Remaining"
-      },
-      "runtime": {
-        "name": "Total Runtime"
-      }
-    },
-    "binary_sensor": {
-      "api_connectivity": {
-        "name": "API Connection"
-      },
-      "filter_replacement": {
-        "name": "Filter Replacement Needed"
-      }
-    },
-    "switch": {
-      "child_lock": {
-        "name": "Child Lock"
-      },
-      "led_display": {
-        "name": "LED Display"
-      }
-    },
-    "select": {
-      "fan_speed": {
-        "name": "Fan Speed",
-        "state": {
-          "low": "Low",
-          "medium": "Medium",
-          "high": "High",
-          "auto": "Auto"
-        }
-      }
-    },
-    "number": {
-      "target_humidity": {
-        "name": "Target Humidity"
-      }
-    },
-    "button": {
-      "reset_filter": {
-        "name": "Reset Filter Timer"
-      }
-    },
-    "fan": {
-      "air_purifier": {
-        "name": "Air Purifier"
+      "weighted_avg_humidity": {
+        "name": "Reference Humidity"
       }
     }
   },
   "issues": {
-    "deprecated_api_endpoint": {
-      "title": "Deprecated API Endpoint",
-      "fix_flow": {
-        "step": {
-          "init": {
-            "title": "Update API Endpoint",
-            "description": "Your device is using API version {api_version} which is deprecated. Please update to v2 for continued support and new features.\n\nClick Submit to update your device to use the new API endpoint (v2). This will reload the integration."
-          }
-        }
-      }
-    },
     "missing_configuration": {
       "title": "Missing Configuration",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Acknowledge Configuration Issue",
-            "description": "Some configuration options are missing or invalid. Please reconfigure the integration to ensure proper operation.\n\nClick Submit to acknowledge this issue. You may need to reconfigure the integration if problems persist."
+            "description": "Some configuration options are missing or invalid. Please reconfigure the integration to ensure proper operation.\n\nClick Submit to acknowledge this issue."
           }
         }
       }
