@@ -198,7 +198,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         """Turn off: update desired state, write to HA, push to underlying entity."""
         self._desired_is_on = False
         self.async_write_ha_state()
-        await self._push_or_queue("homeassistant", "turn_off", {})
+        await self._push_or_queue("fan", "turn_off", {})
 
     async def async_set_percentage(self, percentage: int) -> None:
         """Set speed percentage: update desired state, write to HA, push to underlying entity."""

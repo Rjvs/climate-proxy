@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.components.climate import ClimateEntityFeature, HVACMode
+from homeassistant.const import UnitOfTemperature
 
 if TYPE_CHECKING:
     from homeassistant.core import State
@@ -33,7 +34,8 @@ def detect_supported_features(state: State) -> ClimateEntityFeature:
     if "target_temperature_low" in attrs or "target_temperature_high" in attrs:
         features |= ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 
-    if attrs.get("target_humidity") is not None or "target_humidity" in attrs:
+    # HA exposes target humidity as ATTR_HUMIDITY = "humidity" on the state dict
+    if attrs.get("humidity") is not None or "humidity" in attrs:
         features |= ClimateEntityFeature.TARGET_HUMIDITY
 
     fan_modes = attrs.get("fan_modes")
@@ -47,6 +49,10 @@ def detect_supported_features(state: State) -> ClimateEntityFeature:
     swing_modes = attrs.get("swing_modes")
     if swing_modes:
         features |= ClimateEntityFeature.SWING_MODE
+
+    swing_horizontal_modes = attrs.get("swing_horizontal_modes")
+    if swing_horizontal_modes:
+        features |= ClimateEntityFeature.SWING_HORIZONTAL_MODE
 
     if "aux_heat" in attrs:
         features |= ClimateEntityFeature.AUX_HEAT
@@ -81,6 +87,11 @@ def extract_swing_modes(state: State) -> list[str] | None:
     return state.attributes.get("swing_modes") or None
 
 
+def extract_swing_horizontal_modes(state: State) -> list[str] | None:
+    """Return swing_horizontal_modes list, or None if not supported."""
+    return state.attributes.get("swing_horizontal_modes") or None
+
+
 def extract_min_max_temp(state: State) -> tuple[float, float]:
     """Return (min_temp, max_temp) from the underlying state."""
     min_temp = state.attributes.get("min_temp", 7.0)
@@ -96,5 +107,4 @@ def extract_temp_step(state: State) -> float:
 
 def extract_temperature_unit(state: State) -> str:
     """Return the temperature unit used by the underlying entity."""
-    from homeassistant.const import UnitOfTemperature
     return state.attributes.get("temperature_unit", UnitOfTemperature.CELSIUS)

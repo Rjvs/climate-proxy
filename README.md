@@ -1,4 +1,4 @@
-# Climate Device Proxy
+# Climate Proxy
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
@@ -7,265 +7,136 @@
 [![hacs][hacsbadge]][hacs]
 ![Project Maintenance][maintenance-shield]
 
-<!--
-Uncomment and customize these badges if you want to use them:
-
-[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
-[![Discord][discord-shield]][discord]
--->
-
-**✨ Develop in the cloud:** Want to contribute or customize this integration? Open it directly in GitHub Codespaces - no local setup required!
+**Climate Proxy** is a Home Assistant custom integration that creates a virtual climate device sitting in front of a real physical thermostat. It acts as a "man in the middle": the proxy presents itself to Home Assistant like a full-featured climate device, enforces the user's settings on the underlying hardware, and optionally uses any room sensor — or a weighted average of several sensors — as the temperature or humidity reference instead of the thermostat's built-in sensor.
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Rjvs/climate-proxy?quickstart=1)
 
-## ✨ Features
+---
 
-- **Easy Setup**: Simple configuration through the UI - no YAML required
-- **Air Quality Monitoring**: Track AQI and PM2.5 levels in real-time
-- **Filter Management**: Monitor filter life and get replacement alerts
-- **Smart Control**: Adjust fan speed, target humidity, and operating modes
-- **Child Lock**: Safety feature to prevent accidental changes
-- **Diagnostic Info**: View filter life, runtime hours, and device statistics
-- **Reconfigurable**: Change credentials anytime without removing the integration
-- **Options Flow**: Adjust settings like update interval after setup
-- **Custom Services**: Advanced control with built-in service calls
+## How It Works
 
-**This integration will set up the following platforms.**
+```
+User ──► Proxy entity ──► Real thermostat
+              │
+              └── Monitors real thermostat ──► corrects deviations immediately
+              └── Reads external sensors ──► applies dynamic setpoint offset
+```
 
-Platform | Description
+1. **Proxy acts as the thermostat.** Every control (HVAC mode, temperature, fan mode, preset, swing, humidity) is handled by the proxy, which immediately pushes the command to the underlying device.
+2. **Proxy enforces your settings.** Whenever the underlying thermostat changes state (e.g. reset by the device itself, a power cut, a direct interaction), the proxy detects the deviation and corrects it within seconds.
+3. **Proxy absorbs unavailability.** If the underlying device goes offline, commands are queued and applied as soon as it comes back online. The proxy entity remains available throughout.
+4. **External sensor offset.** When you select external temperature or humidity sensors, the proxy calculates the difference between the thermostat's own sensor and your reference sensors, then biases the physical setpoint to make the external location reach your desired temperature — effectively using the thermostat as a dumb actuator while the proxy provides the smart control.
+5. **All other device entities are proxied too.** Switches, selects, numbers, binary sensors, buttons, and fans that belong to the same HA device as the underlying climate entity are automatically discovered and proxied with the same enforcement pattern.
+
+---
+
+## Features
+
+- **UI-only setup** — no YAML configuration required
+- **Dynamic capability mirroring** — the proxy exposes exactly the features the underlying thermostat supports: single/range temperature, fan modes, preset modes, vertical and horizontal swing, aux heat, and humidity control
+- **Weighted average reference sensors** — pick any number of temperature or humidity sensors and assign weights to each; the proxy computes the weighted average as the reference reading
+- **Setpoint offset calculation** — when external sensors are used, a dynamic offset keeps the physical device tracking the correct location
+- **State restoration** — desired state is persisted across Home Assistant restarts
+- **Diagnostics** — download a full state snapshot from the Devices & Services page
+
+### Proxied Platforms
+
+Platform | Behaviour
 -- | --
-`sensor` | Air quality index (AQI), PM2.5, filter life, and runtime
-`binary_sensor` | API connection status and filter replacement alert
-`switch` | Child lock and LED display controls
-`select` | Fan speed selection (Low/Medium/High/Auto)
-`number` | Target humidity setting (30-80%)
-`button` | Reset filter timer after replacement
-`fan` | Air purifier fan control with speed settings
+`climate` | Full MitM proxy; enforces HVAC mode, temperatures, humidity, fan/preset/swing/aux heat
+`sensor` | Pass-through; mirrors value, unit, device class, and state class without alteration
+`binary_sensor` | Pass-through read-only mirror
+`switch` | MitM; enforces desired on/off state
+`select` | MitM; enforces desired option
+`number` | MitM; enforces desired value (with tolerance)
+`fan` | MitM; enforces on/off, percentage, and preset mode
+`button` | Best-effort pass-through; presses forwarded immediately
 
-> **💡 Interactive Demo**: The entities are interconnected for demonstration:
->
-> - Press the **Reset Filter Timer** button → **Filter Life Remaining** sensor updates to 100%
-> - Change the **Air Purifier** fan speed → **Fan Speed** select syncs automatically
-> - Change the **Fan Speed** select → **Air Purifier** fan syncs automatically
+---
 
-## 🚀 Quick Start
+## Installation
 
-### Step 1: Install the Integration
+### Via HACS (Recommended)
 
-**Prerequisites:** This integration requires [HACS](https://hacs.xyz/) (Home Assistant Community Store) to be installed.
+1. Open HACS in Home Assistant
+2. Click **Custom repositories** and add `https://github.com/Rjvs/climate-proxy` as an **Integration**
+3. Search for **Climate Proxy** and click **Download**
+4. Restart Home Assistant
 
-Click the button below to open the integration directly in HACS:
+### Manual
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jpawlowski&repository=climate-proxy&category=integration)
+1. Copy `custom_components/climate_proxy/` to your `config/custom_components/` directory
+2. Restart Home Assistant
 
-Then:
+---
 
-1. Click "Download" to install the integration
-2. **Restart Home Assistant** (required after installation)
+## Setup
 
-> **Note:** The My Home Assistant redirect will first take you to a landing page. Click the button there to open your Home Assistant instance.
+1. Go to **Settings → Devices & Services → Add Integration**
+2. Search for **Climate Proxy**
+3. Follow the setup wizard:
 
-<details>
-<summary>**Manual Installation (Advanced)**</summary>
+   **Step 1 — Name & Thermostat**
+   Give the proxy a friendly name and select the climate entity to wrap.
 
-If you prefer not to use HACS:
+   **Step 2 — Temperature Sensors** *(optional)*
+   Select one or more sensors to use as the reference temperature. Leave empty to use the thermostat's built-in sensor.
 
-1. Download the `custom_components/climate_proxy/` folder from this repository
-2. Copy it to your Home Assistant's `custom_components/` directory
-3. Restart Home Assistant
+   **Step 3 — Temperature Weights** *(shown only if sensors were selected)*
+   Assign a relative weight (0.1–10) to each temperature sensor. A sensor with weight 2 influences the average twice as much as one with weight 1.
 
-</details>
+   **Step 4 — Humidity Sensors** *(optional)*
+   Same as Step 2 but for humidity.
 
-### Step 2: Add and Configure the Integration
+   **Step 5 — Humidity Weights** *(shown only if sensors were selected)*
+   Same as Step 3 but for humidity.
 
-**Important:** You must have installed the integration first (see Step 1) and restarted Home Assistant!
+### Reconfiguring
 
-#### Option 1: One-Click Setup (Quick)
+To change the underlying thermostat or rename the proxy, go to **Settings → Devices & Services**, find the entry and click the **three-dot menu → Reconfigure**.
 
-Click the button below to open the configuration dialog:
+To update sensor selections after initial setup, click **Configure** on the integration entry.
 
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=climate_proxy)
+---
 
-Follow the setup wizard:
+## Sensor Weighting Example
 
-1. Enter your username
-2. Enter your password
-3. Click Submit
+Suppose you have two temperature sensors:
 
-That's it! The integration will start loading your data.
+| Sensor | Room | Weight | Current reading |
+|--------|------|--------|-----------------|
+| `sensor.bedroom_temp` | Bedroom | 2 | 18 °C |
+| `sensor.hallway_temp` | Hallway | 1 | 24 °C |
 
-#### Option 2: Manual Configuration
+Weighted average = (18 × 2 + 24 × 1) / (2 + 1) = **20 °C**
 
-1. Go to **Settings** → **Devices & Services**
-2. Click **"+ Add Integration"**
-3. Search for "Climate Device Proxy"
-4. Follow the same setup steps as Option 1
+The proxy displays 20 °C as the current temperature and uses it to calculate the setpoint offset sent to the physical thermostat.
 
-### Step 3: Adjust Settings (Optional)
+---
 
-After setup, you can adjust options:
+## Setpoint Offset Calculation
 
-1. Go to **Settings** → **Devices & Services**
-2. Find **Climate Device Proxy**
-3. Click **Configure** to adjust:
-   - Update interval (how often to refresh data)
-   - Enable debug logging
+When external sensors are used, the proxy calculates:
 
-You can also **Reconfigure** your credentials anytime without removing the integration.
-
-### Step 4: Start Using!
-
-The integration creates several entities for your air purifier:
-
-- **Sensors**: Air quality index, PM2.5 levels, filter life remaining, total runtime
-- **Binary Sensors**: API connection status, filter replacement alert
-- **Switches**: Child lock, LED display control
-- **Select**: Fan speed (Low/Medium/High/Auto)
-- **Number**: Target humidity (30-80%)
-- **Button**: Reset filter timer
-- **Fan**: Air purifier fan control
-
-Find all entities in **Settings** → **Devices & Services** → **Climate Device Proxy** → click on the device.
-
-## Available Entities
-
-### Sensors
-
-- **Air Quality Index (AQI)**: Real-time air quality measurement (0-500 scale)
-  - Includes air quality category (Good/Moderate/Unhealthy/etc.)
-  - Health recommendations based on current AQI
-- **PM2.5**: Fine particulate matter concentration in µg/m³
-- **Filter Life Remaining** (Diagnostic): Shows remaining filter life as percentage
-- **Total Runtime** (Diagnostic): Total operating hours of the device
-
-### Binary Sensors
-
-- **API Connection**: Shows whether the connection to the API is active
-  - On: Connected and receiving data
-  - Off: Connection lost or authentication failed
-  - Shows update interval and API endpoint information
-- **Filter Replacement Needed**: Alerts when filter needs replacement
-  - Shows estimated days remaining
-  - Turns on when filter life is low
-
-### Switches
-
-- **Child Lock**: Prevents accidental button presses on the device
-  - Icon changes based on state (locked/unlocked)
-- **LED Display**: Enable/disable the LED display
-  - Disabled by default - enable in entity settings if needed
-
-### Select
-
-- **Fan Speed**: Choose from Low, Medium, High, or Auto
-  - Icon changes dynamically based on selected speed
-  - Auto mode adjusts speed based on air quality
-  - Syncs bidirectionally with the Air Purifier fan entity
-
-### Number
-
-- **Target Humidity**: Set desired humidity level (30-80%)
-  - Adjustable in 5% increments
-  - Displayed as a slider in the UI
-
-### Button
-
-- **Reset Filter Timer**: Reset the filter life to 100%
-  - Press to reset after replacing the filter
-  - Instantly updates the Filter Life Remaining sensor
-
-### Fan
-
-- **Air Purifier**: Control the air purifier fan speed and power
-  - Three speed levels: Low, Medium, High
-  - Syncs bidirectionally with the Fan Speed select entity
-  - Turn on/off functionality
-
-## Custom Services
-
-The integration provides services for advanced automation:
-
-### `climate_proxy.example_action`
-
-Perform a custom action (customize this for your needs).
-
-**Example:**
-
-```yaml
-service: climate_proxy.example_action
-data:
-  # Add your parameters here
+```
+offset          = device_internal_temp - external_weighted_avg
+device_setpoint = proxy_target + offset
 ```
 
-### `climate_proxy.reload_data`
+**Example:** Device reads 23 °C internally, external reference reads 20 °C (offset = +3). User wants 22 °C at the reference location. The proxy tells the device to target 25 °C, so the device stops heating exactly when the external sensor reaches 22 °C.
 
-Manually refresh data from the API without waiting for the update interval.
+---
 
-**Example:**
+## Diagnostics
 
-```yaml
-service: climate_proxy.reload_data
-```
+Download a diagnostics snapshot from:
+**Settings → Devices & Services → Climate Proxy → three-dot menu → Download diagnostics**
 
-Use these services in automations or scripts for more control.
+The snapshot includes the desired state, current offset, discovered entities, pending command queue, and debounce status.
 
-## Configuration Options
+---
 
-### During Setup
-
-Name | Required | Description
--- | -- | --
-Username | Yes | Your account username
-Password | Yes | Your account password
-
-### After Setup (Options)
-
-You can change these anytime by clicking **Configure**:
-
-Name | Default | Description
--- | -- | --
-Update Interval | 1 hour | How often to refresh data
-Enable Debugging | Off | Enable extra debug logging
-
-## Troubleshooting
-
-### Authentication Issues
-
-#### Reauthentication
-
-If your credentials expire or change, Home Assistant will automatically prompt you to reauthenticate:
-
-1. Go to **Settings** → **Devices & Services**
-2. Look for **"Action Required"** or **"Configuration Required"** message on the integration
-3. Click **"Reconfigure"** or follow the prompt
-4. Enter your updated credentials
-5. Click Submit
-
-The integration will automatically resume normal operation with the new credentials.
-
-#### Manual Credential Update
-
-You can also update credentials at any time without waiting for an error:
-
-1. Go to **Settings** → **Devices & Services**
-2. Find **Climate Device Proxy**
-3. Click the **3 dots menu** → **Reconfigure**
-4. Enter new username/password
-5. Click Submit
-
-#### Connection Status
-
-Monitor your connection status with the **API Connection** binary sensor:
-
-- **On** (Connected): Integration is receiving data normally
-- **Off** (Disconnected): Connection lost or authentication failed
-  - Check the binary sensor attributes for diagnostic information
-  - Verify credentials if authentication failed
-  - Check network connectivity
-
-### Enable Debug Logging
-
-To enable debug logging for this integration, add the following to your `configuration.yaml`:
+## Debug Logging
 
 ```yaml
 logger:
@@ -274,84 +145,26 @@ logger:
     custom_components.climate_proxy: debug
 ```
 
-### Common Issues
+---
 
-#### Authentication Errors
+## Contributing
 
-If you receive authentication errors:
+Pull requests and issues are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) if it exists, or just open an issue.
 
-1. Verify your username and password are correct
-2. Check that your account has the necessary permissions
-3. Wait for the automatic reauthentication prompt, or manually reconfigure
-4. Check the API Connection binary sensor for status
+### Local Development
 
-#### Device Not Responding
-
-If your device is not responding:
-
-1. Check the **API Connection** binary sensor - it should be "On"
-2. Check your network connection
-3. Verify the device is powered on
-4. Check the integration diagnostics (Settings → Devices & Services → Climate Device Proxy → 3 dots → Download diagnostics)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please open an issue or pull request if you have suggestions or improvements.
-
-### 🛠️ Development Setup
-
-Want to contribute or customize this integration? You have two options:
-
-#### Cloud Development (Recommended)
-
-The easiest way to get started - develop directly in your browser with GitHub Codespaces:
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Rjvs/climate-proxy?quickstart=1)
-
-- ✅ Zero local setup required
-- ✅ Pre-configured development environment
-- ✅ Home Assistant included for testing
-- ✅ 60 hours/month free for personal accounts
-
-#### Local Development
-
-Prefer working on your machine? You'll need:
-
-- Docker Desktop
-- VS Code with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-
-Then:
-
-1. Clone this repository
-2. Open in VS Code
-3. Click "Reopen in Container" when prompted
-
-Both options give you the same fully-configured development environment with Home Assistant, Python 3.13, and all necessary tools.
+```bash
+git clone https://github.com/Rjvs/climate-proxy
+cd climate-proxy
+pip install -r requirements_test.txt
+pytest tests/ -v
+```
 
 ---
 
-## 🤖 AI-Assisted Development
+## License
 
-> **ℹ️ Transparency Notice**
->
-> This integration was developed with assistance from AI coding agents (GitHub Copilot, Claude, and others). While the codebase follows Home Assistant Core standards, AI-generated code may not be reviewed or tested to the same extent as manually written code.
->
-> AI tools were used to:
->
-> - Generate boilerplate code following Home Assistant patterns
-> - Implement standard integration features (config flow, coordinator, entities)
-> - Ensure code quality and type safety
-> - Write documentation and comments
->
-> Please be aware that AI-assisted development may result in unexpected behavior or edge cases that haven't been thoroughly tested. If you encounter any issues, please [open an issue](../../issues) on GitHub.
->
-> *Note: This section can be removed or modified if AI assistance was not used in your integration's development.*
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
@@ -362,16 +175,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 [commits-shield]: https://img.shields.io/github/commit-activity/y/Rjvs/climate-proxy.svg?style=for-the-badge
 [commits]: https://github.com/Rjvs/climate-proxy/commits/main
 [hacs]: https://github.com/hacs/integration
-[hacsbadge]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
+[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/Rjvs/climate-proxy.svg?style=for-the-badge
 [maintenance-shield]: https://img.shields.io/badge/maintainer-%40Rjvs-blue.svg?style=for-the-badge
 [releases-shield]: https://img.shields.io/github/release/Rjvs/climate-proxy.svg?style=for-the-badge
 [releases]: https://github.com/Rjvs/climate-proxy/releases
-[user_profile]: https://github.com/jpawlowski
-
-<!-- Optional badge definitions - uncomment if needed:
-[buymecoffee]: https://www.buymeacoffee.com/jpawlowski
-[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
-[discord]: https://discord.gg/Qa5fW2R
-[discord-shield]: https://img.shields.io/discord/330944238910963714.svg?style=for-the-badge
--->
+[user_profile]: https://github.com/Rjvs

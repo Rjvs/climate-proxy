@@ -28,12 +28,14 @@ ENFORCEMENT_DEBOUNCE_SECONDS = 2.0
 # Tolerance for floating-point comparison
 TEMPERATURE_TOLERANCE = 0.1
 HUMIDITY_TOLERANCE = 1.0
+NUMBER_TOLERANCE = 0.01
 
 # Parallel updates: 0 = async-safe push integration (no polling)
 PARALLEL_UPDATES = 0
 
 # Restore state keys
 RESTORE_KEY_HVAC_MODE = "hvac_mode"
+RESTORE_KEY_LAST_ACTIVE_HVAC_MODE = "last_active_hvac_mode"
 RESTORE_KEY_TARGET_TEMP = "target_temperature"
 RESTORE_KEY_TARGET_TEMP_LOW = "target_temperature_low"
 RESTORE_KEY_TARGET_TEMP_HIGH = "target_temperature_high"
@@ -41,6 +43,7 @@ RESTORE_KEY_TARGET_HUMIDITY = "target_humidity"
 RESTORE_KEY_PRESET_MODE = "preset_mode"
 RESTORE_KEY_FAN_MODE = "fan_mode"
 RESTORE_KEY_SWING_MODE = "swing_mode"
+RESTORE_KEY_SWING_HORIZONTAL_MODE = "swing_horizontal_mode"
 RESTORE_KEY_AUX_HEAT = "aux_heat"
 RESTORE_KEY_CURRENT_OFFSET = "current_offset"
 RESTORE_KEY_IS_ON = "is_on"

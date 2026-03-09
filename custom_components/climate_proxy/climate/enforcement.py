@@ -10,6 +10,7 @@ from homeassistant.components.climate.const import (
     ATTR_FAN_MODE,
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
+    ATTR_SWING_HORIZONTAL_MODE,
     ATTR_SWING_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
@@ -18,6 +19,7 @@ from homeassistant.components.climate.const import (
     SERVICE_SET_HVAC_MODE,
     SERVICE_SET_HUMIDITY,
     SERVICE_SET_PRESET_MODE,
+    SERVICE_SET_SWING_HORIZONTAL_MODE,
     SERVICE_SET_SWING_MODE,
     SERVICE_SET_TEMPERATURE,
 )
@@ -39,6 +41,7 @@ def get_climate_corrections(
     desired_preset_mode: str | None,
     desired_fan_mode: str | None,
     desired_swing_mode: str | None,
+    desired_swing_horizontal_mode: str | None,
     desired_aux_heat: bool | None,
     effective_target_temperature: float | None = None,
     effective_target_low: float | None = None,
@@ -107,11 +110,19 @@ def get_climate_corrections(
         if actual_fan != desired_fan_mode:
             corrections[SERVICE_SET_FAN_MODE] = {ATTR_FAN_MODE: desired_fan_mode}
 
-    # Swing mode
+    # Swing mode (vertical)
     if desired_swing_mode is not None:
         actual_swing = attrs.get("swing_mode")
         if actual_swing != desired_swing_mode:
             corrections[SERVICE_SET_SWING_MODE] = {ATTR_SWING_MODE: desired_swing_mode}
+
+    # Swing horizontal mode
+    if desired_swing_horizontal_mode is not None:
+        actual_swing_h = attrs.get("swing_horizontal_mode")
+        if actual_swing_h != desired_swing_horizontal_mode:
+            corrections[SERVICE_SET_SWING_HORIZONTAL_MODE] = {
+                ATTR_SWING_HORIZONTAL_MODE: desired_swing_horizontal_mode
+            }
 
     # Aux heat
     if desired_aux_heat is not None:

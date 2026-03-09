@@ -9,7 +9,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 
-from ..const import LOGGER, RESTORE_KEY_NATIVE_VALUE, TEMPERATURE_TOLERANCE
+from ..const import LOGGER, NUMBER_TOLERANCE, RESTORE_KEY_NATIVE_VALUE
 
 if TYPE_CHECKING:
     from homeassistant.core import Event, EventStateChangedData, State
@@ -162,7 +162,7 @@ class ClimateProxyNumberEntity(NumberEntity, RestoreEntity):
         """
         Return service calls needed to bring the underlying entity to desired state.
 
-        Uses TEMPERATURE_TOLERANCE for floating-point comparison.
+        Uses NUMBER_TOLERANCE for floating-point comparison.
         Returns a dict of {service: kwargs} or an empty dict if no correction needed.
         """
         if self._desired_value is None:
@@ -173,7 +173,7 @@ class ClimateProxyNumberEntity(NumberEntity, RestoreEntity):
             underlying_value = float(underlying_state.state)
         except (ValueError, TypeError):
             return {}
-        if abs(underlying_value - self._desired_value) > TEMPERATURE_TOLERANCE:
+        if abs(underlying_value - self._desired_value) > NUMBER_TOLERANCE:
             return {"set_value": {"value": self._desired_value}}
         return {}
 
