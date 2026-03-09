@@ -25,3 +25,4 @@ class ClimateProxyData:
     state_manager: ClimateProxyStateManager
     integration: Integration
     discovered_entities: dict[Platform, list[RegistryEntry]] = field(default_factory=dict)
+    active_platforms: list[Platform] = field(default_factory=list)

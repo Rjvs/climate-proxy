@@ -8,6 +8,7 @@ from homeassistant.components.climate import HVACMode
 from homeassistant.components.climate.const import (
     ATTR_AUX_HEAT,
     ATTR_FAN_MODE,
+    ATTR_HUMIDITY,
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
     ATTR_SWING_HORIZONTAL_MODE,
@@ -68,16 +69,21 @@ def get_climate_corrections(
         if actual_hvac != desired_hvac_mode:
             corrections[SERVICE_SET_HVAC_MODE] = {ATTR_HVAC_MODE: desired_hvac_mode}
 
+    # Temperature and humidity corrections are skipped when the desired mode is OFF,
+    # as pushing setpoints to an off device can trigger unintended mode changes on
+    # some thermostats.
+    mode_is_off = desired_hvac_mode == HVACMode.OFF
+
     # Temperature (single setpoint or range)
     eff_temp = effective_target_temperature if effective_target_temperature is not None else desired_target_temperature
     eff_low = effective_target_low if effective_target_low is not None else desired_target_temperature_low
     eff_high = effective_target_high if effective_target_high is not None else desired_target_temperature_high
 
-    if eff_temp is not None:
+    if not mode_is_off and eff_temp is not None:
         actual_temp = attrs.get("temperature")
         if actual_temp is None or abs(float(actual_temp) - eff_temp) > TEMPERATURE_TOLERANCE:
             corrections[SERVICE_SET_TEMPERATURE] = {ATTR_TEMPERATURE: eff_temp}
-    elif eff_low is not None and eff_high is not None:
+    elif not mode_is_off and eff_low is not None and eff_high is not None:
         actual_low = attrs.get(ATTR_TARGET_TEMP_LOW)
         actual_high = attrs.get(ATTR_TARGET_TEMP_HIGH)
         needs_correction = (
@@ -93,10 +99,10 @@ def get_climate_corrections(
             }
 
     # Target humidity
-    if desired_target_humidity is not None:
-        actual_humidity = attrs.get("humidity")
+    if not mode_is_off and desired_target_humidity is not None:
+        actual_humidity = attrs.get(ATTR_HUMIDITY)
         if actual_humidity is None or abs(float(actual_humidity) - desired_target_humidity) > HUMIDITY_TOLERANCE:
-            corrections[SERVICE_SET_HUMIDITY] = {"humidity": desired_target_humidity}
+            corrections[SERVICE_SET_HUMIDITY] = {ATTR_HUMIDITY: desired_target_humidity}
 
     # Preset mode
     if desired_preset_mode is not None:

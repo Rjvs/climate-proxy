@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 
@@ -284,6 +285,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
             features |= FanEntityFeature.PRESET_MODE
         self._attr_supported_features = features
 
+    @callback
     def _on_underlying_state_changed(
         self, event: Event[EventStateChangedData]
     ) -> None:
@@ -312,8 +314,9 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
             await self.hass.services.async_call(
                 domain,
                 service,
-                {"entity_id": self._underlying_entity_id, **kwargs},
+                kwargs,
                 blocking=False,
+                target={"entity_id": self._underlying_entity_id},
             )
         else:
             LOGGER.debug(

@@ -35,6 +35,7 @@ class WeightedAvgTemperatureSensor(SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_translation_key = "weighted_avg_temperature"
     # Unit is Celsius by default; can be updated from underlying device capabilities
     # without changing this value because HA performs unit conversion automatically.
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
@@ -57,7 +58,6 @@ class WeightedAvgTemperatureSensor(SensorEntity):
         self._attr_device_info = device_info
 
         self._attr_unique_id = f"{config_entry.entry_id}_weighted_avg_temperature"
-        self._attr_name = "Weighted Average Temperature"
 
     # ------------------------------------------------------------------
     # SensorEntity properties
@@ -93,6 +93,7 @@ class WeightedAvgHumiditySensor(SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = SensorDeviceClass.HUMIDITY
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_translation_key = "weighted_avg_humidity"
     _attr_native_unit_of_measurement = PERCENTAGE
 
     def __init__(
@@ -113,7 +114,6 @@ class WeightedAvgHumiditySensor(SensorEntity):
         self._attr_device_info = device_info
 
         self._attr_unique_id = f"{config_entry.entry_id}_weighted_avg_humidity"
-        self._attr_name = "Weighted Average Humidity"
 
     # ------------------------------------------------------------------
     # SensorEntity properties

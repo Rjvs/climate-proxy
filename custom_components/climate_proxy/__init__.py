@@ -86,6 +86,7 @@ async def async_setup_entry(
         state_manager=state_manager,
         integration=async_get_loaded_integration(hass, entry.domain),
         discovered_entities=discovered_entities,
+        active_platforms=active_platforms,
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, active_platforms)
@@ -104,22 +105,9 @@ async def async_unload_entry(
 ) -> bool:
     """Unload a config entry — tear down subscriptions and platform entities."""
     await entry.runtime_data.state_manager.async_teardown()
-
-    # Determine which platforms were activated
-    discovered = entry.runtime_data.discovered_entities
-    active_platforms: list[Platform] = [Platform.CLIMATE, Platform.SENSOR]
-    for platform in [
-        Platform.BINARY_SENSOR,
-        Platform.SWITCH,
-        Platform.SELECT,
-        Platform.NUMBER,
-        Platform.BUTTON,
-        Platform.FAN,
-    ]:
-        if platform in discovered:
-            active_platforms.append(platform)
-
-    return await hass.config_entries.async_unload_platforms(entry, active_platforms)
+    return await hass.config_entries.async_unload_platforms(
+        entry, entry.runtime_data.active_platforms
+    )
 
 
 async def async_reload_entry(

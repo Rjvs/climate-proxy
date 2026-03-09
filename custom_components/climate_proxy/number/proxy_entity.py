@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 
@@ -210,6 +211,7 @@ class ClimateProxyNumberEntity(NumberEntity, RestoreEntity):
                 pass
         self._attr_native_unit_of_measurement = attrs.get("unit_of_measurement")
 
+    @callback
     def _on_underlying_state_changed(
         self, event: Event[EventStateChangedData]
     ) -> None:
@@ -236,8 +238,9 @@ class ClimateProxyNumberEntity(NumberEntity, RestoreEntity):
             await self.hass.services.async_call(
                 "number",
                 service,
-                {"entity_id": self._underlying_entity_id, **kwargs},
+                kwargs,
                 blocking=False,
+                target={"entity_id": self._underlying_entity_id},
             )
         else:
             LOGGER.debug(

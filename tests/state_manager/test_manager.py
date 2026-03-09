@@ -160,8 +160,9 @@ class TestControlEntityEnforcement:
         manager.hass.services.async_call.assert_called_once_with(
             "switch",
             "turn_on",
-            {"entity_id": "switch.test"},
+            {},
             blocking=False,
+            target={"entity_id": "switch.test"},
         )
 
     async def test_no_enforcement_for_unknown_entity(self) -> None:

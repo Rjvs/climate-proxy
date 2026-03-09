@@ -101,27 +101,77 @@ class TestCalculateDeviceSetpoint:
     def test_no_offset_needed(self) -> None:
         """When device sensor == external sensor, setpoint equals proxy target."""
         result = calculate_device_setpoint(
-            proxy_target=21.0, device_internal_temp=21.0, external_temp=21.0
+            proxy_target=21.0,
+            device_internal_temp=21.0,
+            external_temp=21.0,
+            min_temp=7.0,
+            max_temp=35.0,
         )
         assert result == pytest.approx(21.0)
 
     def test_positive_offset(self) -> None:
-        """Device reads warmer than external sensor — reduce setpoint."""
+        """Device reads warmer than external sensor — increase setpoint sent to device."""
         # Device reads 23°C, external reads 20°C, offset=3
         # User wants external to reach 22°C → device_setpoint = 22 + 3 = 25
         result = calculate_device_setpoint(
-            proxy_target=22.0, device_internal_temp=23.0, external_temp=20.0
+            proxy_target=22.0,
+            device_internal_temp=23.0,
+            external_temp=20.0,
+            min_temp=7.0,
+            max_temp=35.0,
         )
         assert result == pytest.approx(25.0)
 
     def test_negative_offset(self) -> None:
-        """Device reads cooler than external sensor — increase setpoint."""
+        """Device reads cooler than external sensor — reduce setpoint sent to device."""
         # Device reads 18°C, external reads 20°C, offset=-2
         # User wants external to reach 22°C → device_setpoint = 22 + (-2) = 20
         result = calculate_device_setpoint(
-            proxy_target=22.0, device_internal_temp=18.0, external_temp=20.0
+            proxy_target=22.0,
+            device_internal_temp=18.0,
+            external_temp=20.0,
+            min_temp=7.0,
+            max_temp=35.0,
         )
         assert result == pytest.approx(20.0)
+
+    def test_clamp_to_max(self) -> None:
+        """Offset-adjusted setpoint above max_temp is clamped to max_temp."""
+        # Device reads 30°C, external reads 10°C, offset=20
+        # User wants external to reach 22°C → raw setpoint = 22 + 20 = 42 → clamped to 35
+        result = calculate_device_setpoint(
+            proxy_target=22.0,
+            device_internal_temp=30.0,
+            external_temp=10.0,
+            min_temp=7.0,
+            max_temp=35.0,
+        )
+        assert result == pytest.approx(35.0)
+
+    def test_clamp_to_min(self) -> None:
+        """Offset-adjusted setpoint below min_temp is clamped to min_temp."""
+        # Device reads 5°C, external reads 25°C, offset=-20
+        # User wants external to reach 18°C → raw setpoint = 18 + (-20) = -2 → clamped to 7
+        result = calculate_device_setpoint(
+            proxy_target=18.0,
+            device_internal_temp=5.0,
+            external_temp=25.0,
+            min_temp=7.0,
+            max_temp=35.0,
+        )
+        assert result == pytest.approx(7.0)
+
+    def test_result_within_bounds_not_clamped(self) -> None:
+        """When result is within [min, max], it is returned unchanged."""
+        result = calculate_device_setpoint(
+            proxy_target=20.0,
+            device_internal_temp=22.0,
+            external_temp=20.0,
+            min_temp=7.0,
+            max_temp=35.0,
+        )
+        assert result == pytest.approx(22.0)
+        assert 7.0 <= result <= 35.0
 
 
 @pytest.mark.unit
@@ -135,7 +185,37 @@ class TestCalculateSetpointRange:
             proxy_target_high=22.0,
             device_internal_temp=23.0,
             external_temp=20.0,
+            min_temp=7.0,
+            max_temp=35.0,
         )
         # offset = 23 - 20 = 3
         assert low == pytest.approx(21.0)
         assert high == pytest.approx(25.0)
+
+    def test_range_clamp_high_to_max(self) -> None:
+        """High bound is clamped to max_temp when offset pushes it over."""
+        low, high = calculate_setpoint_range(
+            proxy_target_low=20.0,
+            proxy_target_high=28.0,
+            device_internal_temp=30.0,
+            external_temp=15.0,
+            min_temp=7.0,
+            max_temp=35.0,
+        )
+        # offset = 30 - 15 = 15 → low=35 (clamped), high=43 (clamped to 35)
+        assert low == pytest.approx(35.0)
+        assert high == pytest.approx(35.0)
+
+    def test_range_clamp_low_to_min(self) -> None:
+        """Low bound is clamped to min_temp when offset pulls it below."""
+        low, high = calculate_setpoint_range(
+            proxy_target_low=10.0,
+            proxy_target_high=14.0,
+            device_internal_temp=5.0,
+            external_temp=25.0,
+            min_temp=7.0,
+            max_temp=35.0,
+        )
+        # offset = 5 - 25 = -20 → low=-10 (clamped to 7), high=-6 (clamped to 7)
+        assert low == pytest.approx(7.0)
+        assert high == pytest.approx(7.0)

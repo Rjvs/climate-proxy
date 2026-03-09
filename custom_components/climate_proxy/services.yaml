@@ -1,5 +1,0 @@
-reload_entry:
-  name: Reload
-  description: Reload the Climate Proxy config entry, re-discovering entities and re-applying settings.
-  target:
-    integration: climate_proxy

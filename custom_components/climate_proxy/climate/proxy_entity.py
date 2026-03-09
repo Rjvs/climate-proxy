@@ -410,8 +410,9 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
             await self.hass.services.async_call(
                 "climate",
                 service,
-                {**kwargs, "entity_id": self._underlying_entity_id},
+                kwargs,
                 blocking=False,
+                target={"entity_id": self._underlying_entity_id},
             )
 
     def get_climate_corrections(self, underlying_state: State) -> dict[str, dict[str, Any]]:
@@ -464,10 +465,10 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
 
         if humidity_sensors:
             weighted = calculate_weighted_average(humidity_sensors, self.hass)
-            self._attr_current_humidity = int(weighted) if weighted is not None else None
+            self._attr_current_humidity = weighted
         else:
             raw = state.attributes.get("current_humidity")
-            self._attr_current_humidity = int(raw) if raw is not None else None
+            self._attr_current_humidity = float(raw) if raw is not None else None
 
         raw_action = state.attributes.get(ATTR_HVAC_ACTION)
         if raw_action is not None:
@@ -541,7 +542,11 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
 
         if self._desired_target_temperature is not None:
             eff_temp = calculate_device_setpoint(
-                self._desired_target_temperature, device_internal, external_temp
+                self._desired_target_temperature,
+                device_internal,
+                external_temp,
+                self._attr_min_temp,
+                self._attr_max_temp,
             )
             return eff_temp, None, None
 
@@ -554,6 +559,8 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
                 self._desired_target_temperature_high,
                 device_internal,
                 external_temp,
+                self._attr_min_temp,
+                self._attr_max_temp,
             )
             return None, eff_low, eff_high
 
@@ -566,8 +573,9 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
             await self.hass.services.async_call(
                 "climate",
                 service,
-                {**kwargs, "entity_id": self._underlying_entity_id},
+                kwargs,
                 blocking=False,
+                target={"entity_id": self._underlying_entity_id},
             )
         else:
             self._state_manager.queue_pending_state(service, kwargs)

@@ -122,3 +122,27 @@ class TestClimateProxySelectEntity:
         entity._desired_option = "away"
         restore_data = entity.extra_restore_state_data
         assert restore_data.as_dict()[RESTORE_KEY_CURRENT_OPTION] == "away"
+
+    def test_on_underlying_state_changed_is_callback(self) -> None:
+        """E1: _on_underlying_state_changed must be decorated with @callback."""
+        entity = _make_entity()
+        assert getattr(entity._on_underlying_state_changed, "_hass_callback", False) is True
+
+    async def test_push_uses_target_not_entity_id_in_service_data(self) -> None:
+        """E5: service calls must use target= kwarg, not entity_id in service_data."""
+        entity = _make_entity()
+        entity.hass = MagicMock()
+        entity.hass.states.get = MagicMock(
+            return_value=State("select.test_select", "comfort", {"options": ["eco", "comfort"]})
+        )
+        entity.hass.services.async_call = AsyncMock()
+        entity.async_write_ha_state = MagicMock()
+
+        await entity.async_select_option("eco")
+
+        call_args = entity.hass.services.async_call.call_args
+        service_data = call_args[0][2] if len(call_args[0]) > 2 else call_args[1].get("service_data", {})
+        assert "entity_id" not in service_data
+        target = call_args[1].get("target")
+        assert target is not None
+        assert target["entity_id"] == "select.test_select"

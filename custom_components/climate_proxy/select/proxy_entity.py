@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 
@@ -165,6 +166,7 @@ class ClimateProxySelectEntity(SelectEntity, RestoreEntity):
     # Internal helpers
     # ------------------------------------------------------------------
 
+    @callback
     def _on_underlying_state_changed(
         self, event: Event[EventStateChangedData]
     ) -> None:
@@ -193,8 +195,9 @@ class ClimateProxySelectEntity(SelectEntity, RestoreEntity):
             await self.hass.services.async_call(
                 "select",
                 service,
-                {"entity_id": self._underlying_entity_id, **kwargs},
+                kwargs,
                 blocking=False,
+                target={"entity_id": self._underlying_entity_id},
             )
         else:
             LOGGER.debug(

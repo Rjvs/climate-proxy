@@ -158,8 +158,9 @@ class ClimateProxyStateManager:
                 await self.hass.services.async_call(
                     "climate",
                     service,
-                    {**kwargs, "entity_id": self._climate_entity_id},
+                    kwargs,
                     blocking=False,
+                    target={"entity_id": self._climate_entity_id},
                 )
 
     # ------------------------------------------------------------------
@@ -228,8 +229,9 @@ class ClimateProxyStateManager:
                 await self.hass.services.async_call(
                     platform,
                     service,
-                    {**kwargs, "entity_id": underlying_entity_id},
+                    kwargs,
                     blocking=False,
+                    target={"entity_id": underlying_entity_id},
                 )
 
     # ------------------------------------------------------------------

@@ -134,3 +134,24 @@ class TestWeightedAvgHumiditySensor:
     def test_unique_id(self) -> None:
         entity = _make_humidity_sensor([])
         assert "weighted_avg_humidity" in entity.unique_id
+
+
+@pytest.mark.unit
+class TestWeightedAvgSensorTranslationKey:
+    """E4: Verify sensors use _attr_translation_key, not hardcoded _attr_name."""
+
+    def test_temperature_sensor_uses_translation_key(self) -> None:
+        entity = _make_temp_sensor([])
+        assert entity._attr_translation_key == "weighted_avg_temperature"
+
+    def test_temperature_sensor_has_no_hardcoded_name(self) -> None:
+        entity = _make_temp_sensor([])
+        assert entity._attr_name is None
+
+    def test_humidity_sensor_uses_translation_key(self) -> None:
+        entity = _make_humidity_sensor([])
+        assert entity._attr_translation_key == "weighted_avg_humidity"
+
+    def test_humidity_sensor_has_no_hardcoded_name(self) -> None:
+        entity = _make_humidity_sensor([])
+        assert entity._attr_name is None

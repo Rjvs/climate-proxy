@@ -211,3 +211,25 @@ class TestClimateProxyFanEntity:
         assert restore_data[RESTORE_KEY_IS_ON] is True
         assert restore_data[RESTORE_KEY_PERCENTAGE] == 60
         assert restore_data[RESTORE_KEY_PRESET_MODE] == "eco"
+
+    def test_on_underlying_state_changed_is_callback(self) -> None:
+        """E1: _on_underlying_state_changed must be decorated with @callback."""
+        entity = _make_entity()
+        assert getattr(entity._on_underlying_state_changed, "_hass_callback", False) is True
+
+    async def test_push_uses_target_not_entity_id_in_service_data(self) -> None:
+        """E5: service calls must use target= kwarg, not entity_id in service_data."""
+        entity = _make_entity()
+        entity.hass = MagicMock()
+        entity.hass.states.get = MagicMock(return_value=State("fan.test_fan", "off"))
+        entity.hass.services.async_call = AsyncMock()
+        entity.async_write_ha_state = MagicMock()
+
+        await entity.async_turn_on()
+
+        call_args = entity.hass.services.async_call.call_args
+        service_data = call_args[0][2] if len(call_args[0]) > 2 else call_args[1].get("service_data", {})
+        assert "entity_id" not in service_data
+        target = call_args[1].get("target")
+        assert target is not None
+        assert target["entity_id"] == "fan.test_fan"
