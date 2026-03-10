@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event
-
 
 if TYPE_CHECKING:
     from homeassistant.core import Event, EventStateChangedData
@@ -102,19 +102,15 @@ class ClimateProxySensorEntity(SensorEntity):
             self._unsub_state_change()
             self._unsub_state_change = None
 
-        try:
+        with contextlib.suppress(ValueError):
             self._state_manager.sensor_proxy_entities.remove(self)
-        except ValueError:
-            pass
 
     # ------------------------------------------------------------------
     # State change callback
     # ------------------------------------------------------------------
 
     @callback
-    def _on_underlying_state_changed(
-        self, event: Event[EventStateChangedData]
-    ) -> None:
+    def _on_underlying_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle state_changed events from the underlying sensor entity."""
         self._refresh_from_underlying()
         self.async_write_ha_state()
@@ -138,13 +134,11 @@ class ClimateProxySensorEntity(SensorEntity):
         raw = state.state
         try:
             self._attr_native_value = float(raw)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError):  # fmt: skip
             self._attr_native_value = raw
 
         # Mirror unit, device class, state class
-        self._attr_native_unit_of_measurement = state.attributes.get(
-            "unit_of_measurement"
-        )
+        self._attr_native_unit_of_measurement = state.attributes.get("unit_of_measurement")
         self._attr_device_class = state.attributes.get("device_class")
         self._attr_state_class = state.attributes.get("state_class")
 
@@ -167,8 +161,4 @@ class ClimateProxySensorEntity(SensorEntity):
         # Exclude standard HA attributes that are already surfaced via dedicated
         # SensorEntity properties so we don't duplicate them.
         excluded = {"unit_of_measurement", "device_class", "state_class", "friendly_name"}
-        return {
-            key: value
-            for key, value in state.attributes.items()
-            if key not in excluded
-        } or None
+        return {key: value for key, value in state.attributes.items() if key not in excluded} or None

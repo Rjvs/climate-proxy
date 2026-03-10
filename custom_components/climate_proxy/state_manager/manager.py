@@ -9,11 +9,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event
 
-from ..const import (
-    CONF_CLIMATE_ENTITY_ID,
-    ENFORCEMENT_DEBOUNCE_SECONDS,
-    LOGGER,
-)
+from ..const import CONF_CLIMATE_ENTITY_ID, ENFORCEMENT_DEBOUNCE_SECONDS, LOGGER
 from .subscriptions import get_all_sensor_ids
 
 if TYPE_CHECKING:
@@ -131,10 +127,7 @@ class ClimateProxyStateManager:
             await self.climate_proxy_entity.async_on_underlying_state_changed(new_state)
 
             # If device just came back from unavailable, drain pending state
-            if (
-                was_unavailable
-                and new_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-            ):
+            if was_unavailable and new_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
                 await self._async_drain_pending_state()
                 # Fall through: always enforce desired state after reconnect, even if
                 # nothing was queued — the device may have come back in a different state.
@@ -201,7 +194,8 @@ class ClimateProxyStateManager:
         platform: str,
         underlying_state: State,
     ) -> None:
-        """
+        """Check if a MitM control entity deviates from desired state and correct it.
+
         Check whether a MitM control entity's underlying state deviates from
         desired, and push a correction if needed.
 
@@ -253,8 +247,11 @@ class ClimateProxyStateManager:
             self._climate_entity_id,
         )
         if self.climate_proxy_entity is not None:
-            await self.climate_proxy_entity.async_apply_pending_state(self.pending_state)
-        self.pending_state.clear()
+            pending = dict(self.pending_state)
+            self.pending_state.clear()
+            await self.climate_proxy_entity.async_apply_pending_state(pending)
+        else:
+            self.pending_state.clear()
 
     # ------------------------------------------------------------------
     # Debounce helpers

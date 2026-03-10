@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import issue_registry as ir
-
-if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
 
 
 async def async_create_fix_flow(

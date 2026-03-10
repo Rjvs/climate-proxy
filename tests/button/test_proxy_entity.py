@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import State
 
 from custom_components.climate_proxy.button.proxy_entity import ClimateProxyButtonEntity
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import State
 
 
 def _make_entity(
@@ -79,9 +79,7 @@ class TestClimateProxyButtonEntityAvailability:
     def test_available_even_when_underlying_unavailable(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("button.test_button", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("button.test_button", STATE_UNAVAILABLE))
         assert entity.available is True
 
     def test_available_even_when_underlying_missing(self) -> None:
@@ -96,9 +94,7 @@ class TestClimateProxyButtonEntityPress:
     async def test_press_forwards_to_underlying_when_available(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("button.test_button", "unknown")
-        )
+        entity.hass.states.get = MagicMock(return_value=State("button.test_button", "unknown"))
         entity.hass.services.async_call = AsyncMock()
 
         await entity.async_press()
@@ -113,27 +109,23 @@ class TestClimateProxyButtonEntityPress:
     async def test_press_dropped_when_underlying_unavailable(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("button.test_button", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("button.test_button", STATE_UNAVAILABLE))
         entity.hass.services.async_call = AsyncMock()
 
         await entity.async_press()
 
         entity.hass.services.async_call.assert_not_called()
 
-    async def test_press_dropped_when_underlying_unknown(self) -> None:
-        """STATE_UNKNOWN (string 'unknown') is treated as unavailable for press."""
+    async def test_press_forwarded_when_underlying_unknown(self) -> None:
+        """STATE_UNKNOWN is the natural button state (never pressed); press should forward."""
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("button.test_button", STATE_UNKNOWN)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("button.test_button", STATE_UNKNOWN))
         entity.hass.services.async_call = AsyncMock()
 
         await entity.async_press()
 
-        entity.hass.services.async_call.assert_not_called()
+        entity.hass.services.async_call.assert_called_once()
 
     async def test_press_dropped_when_underlying_missing(self) -> None:
         entity = _make_entity()
@@ -148,9 +140,7 @@ class TestClimateProxyButtonEntityPress:
     async def test_press_uses_button_domain(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("button.test_button", "unknown")
-        )
+        entity.hass.states.get = MagicMock(return_value=State("button.test_button", "unknown"))
         entity.hass.services.async_call = AsyncMock()
 
         await entity.async_press()
@@ -162,9 +152,7 @@ class TestClimateProxyButtonEntityPress:
     async def test_press_targets_correct_underlying_entity(self) -> None:
         entity = _make_entity(underlying_entity_id="button.my_specific_button")
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("button.my_specific_button", "unknown")
-        )
+        entity.hass.states.get = MagicMock(return_value=State("button.my_specific_button", "unknown"))
         entity.hass.services.async_call = AsyncMock()
 
         await entity.async_press()
@@ -175,9 +163,7 @@ class TestClimateProxyButtonEntityPress:
     async def test_press_uses_blocking_false(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("button.test_button", "unknown")
-        )
+        entity.hass.states.get = MagicMock(return_value=State("button.test_button", "unknown"))
         entity.hass.services.async_call = AsyncMock()
 
         await entity.async_press()

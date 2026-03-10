@@ -9,10 +9,7 @@ from ..const import CONF_SENSOR_ENTITY_ID, CONF_SENSOR_WEIGHT
 
 def build_sensor_list(entity_ids: list[str], weights: dict[str, float]) -> list[dict[str, Any]]:
     """Convert parallel lists of entity_ids and weights dict to sensor config list."""
-    return [
-        {CONF_SENSOR_ENTITY_ID: eid, CONF_SENSOR_WEIGHT: weights.get(eid, 1.0)}
-        for eid in entity_ids
-    ]
+    return [{CONF_SENSOR_ENTITY_ID: eid, CONF_SENSOR_WEIGHT: weights.get(eid, 1.0)} for eid in entity_ids]
 
 
 def extract_entity_ids(sensor_list: list[dict[str, Any]]) -> list[str]:

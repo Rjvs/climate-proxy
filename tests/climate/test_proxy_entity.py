@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.components.climate import ClimateEntityFeature, HVACMode
-from homeassistant.const import STATE_UNAVAILABLE
-from homeassistant.core import State
 
-from custom_components.climate_proxy.climate.proxy_entity import (
-    ClimateProxyClimateEntity,
-    ClimateProxyRestoreData,
-)
+from custom_components.climate_proxy.climate.proxy_entity import ClimateProxyClimateEntity, ClimateProxyRestoreData
 from custom_components.climate_proxy.const import (
-    RESTORE_KEY_AUX_HEAT,
     RESTORE_KEY_CURRENT_OFFSET,
     RESTORE_KEY_FAN_MODE,
     RESTORE_KEY_HVAC_MODE,
@@ -27,6 +20,9 @@ from custom_components.climate_proxy.const import (
     RESTORE_KEY_TARGET_TEMP_HIGH,
     RESTORE_KEY_TARGET_TEMP_LOW,
 )
+from homeassistant.components.climate import ClimateEntityFeature, HVACMode
+from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.core import State
 
 
 def _make_entity() -> ClimateProxyClimateEntity:
@@ -69,7 +65,6 @@ class TestClimateProxyRestoreData:
             RESTORE_KEY_FAN_MODE: "auto",
             RESTORE_KEY_SWING_MODE: "on",
             RESTORE_KEY_SWING_HORIZONTAL_MODE: "left_right",
-            RESTORE_KEY_AUX_HEAT: False,
             RESTORE_KEY_CURRENT_OFFSET: 1.5,
         }
         restore = ClimateProxyRestoreData(data)
@@ -102,7 +97,6 @@ class TestClimateProxyClimateEntityInit:
         assert entity.preset_mode is None
         assert entity.swing_mode is None
         assert entity.swing_horizontal_mode is None
-        assert entity.is_aux_heat is None
 
 
 @pytest.mark.unit
@@ -206,11 +200,6 @@ class TestClimateCommands:
         await entity.async_set_swing_horizontal_mode("left_right")
         assert entity._desired_swing_horizontal_mode == "left_right"
 
-    async def test_set_aux_heat_updates_desired(self) -> None:
-        entity = _make_entity()
-        await entity.async_set_aux_heat(True)
-        assert entity._desired_aux_heat is True
-
     async def test_turn_off_sets_hvac_off(self) -> None:
         entity = _make_entity()
         entity._desired_hvac_mode = HVACMode.HEAT
@@ -261,17 +250,13 @@ class TestPushOrQueue:
 
     async def test_queues_when_underlying_unavailable(self) -> None:
         entity = _make_entity()
-        entity.hass.states.get = MagicMock(
-            return_value=State("climate.thermostat", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("climate.thermostat", STATE_UNAVAILABLE))
         entity.hass.services.async_call = AsyncMock()
 
         await entity._push_or_queue("set_hvac_mode", {"hvac_mode": "heat"})
 
         entity.hass.services.async_call.assert_not_called()
-        entity._state_manager.queue_pending_state.assert_called_once_with(
-            "set_hvac_mode", {"hvac_mode": "heat"}
-        )
+        entity._state_manager.queue_pending_state.assert_called_once_with("set_hvac_mode", {"hvac_mode": "heat"})
 
     async def test_queues_when_underlying_none(self) -> None:
         entity = _make_entity()

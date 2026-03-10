@@ -13,8 +13,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
-from homeassistant.loader import async_get_loaded_integration
 import homeassistant.helpers.config_validation as cv
+from homeassistant.loader import async_get_loaded_integration
 
 from .const import CONF_CLIMATE_ENTITY_ID, DOMAIN, LOGGER
 from .data import ClimateProxyData
@@ -68,18 +68,21 @@ async def async_setup_entry(
         {k.value: [e.entity_id for e in v] for k, v in discovered_entities.items()},
     )
 
-    # Always activate CLIMATE + SENSOR (for weighted-avg sensors)
-    active_platforms: list[Platform] = [Platform.CLIMATE, Platform.SENSOR]
-    for platform in [
+    # Always activate CLIMATE + SENSOR (for weighted-avg sensors); optionally activate
+    # companion platforms only if the underlying device has entities of that type.
+    optional_platforms = [
         Platform.BINARY_SENSOR,
         Platform.SWITCH,
         Platform.SELECT,
         Platform.NUMBER,
         Platform.BUTTON,
         Platform.FAN,
-    ]:
-        if platform in discovered_entities:
-            active_platforms.append(platform)
+    ]
+    active_platforms: list[Platform] = [
+        Platform.CLIMATE,
+        Platform.SENSOR,
+        *(p for p in optional_platforms if p in discovered_entities),
+    ]
 
     state_manager = ClimateProxyStateManager(hass, entry)
 
@@ -104,6 +107,4 @@ async def async_unload_entry(
 ) -> bool:
     """Unload a config entry — tear down subscriptions and platform entities."""
     await entry.runtime_data.state_manager.async_teardown()
-    return await hass.config_entries.async_unload_platforms(
-        entry, entry.runtime_data.active_platforms
-    )
+    return await hass.config_entries.async_unload_platforms(entry, entry.runtime_data.active_platforms)

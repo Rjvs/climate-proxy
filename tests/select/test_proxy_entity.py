@@ -5,14 +5,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+from custom_components.climate_proxy.const import RESTORE_KEY_CURRENT_OPTION
+from custom_components.climate_proxy.select.proxy_entity import ClimateProxySelectEntity, ClimateProxySelectRestoreData
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import State
-
-from custom_components.climate_proxy.select.proxy_entity import (
-    ClimateProxySelectEntity,
-    ClimateProxySelectRestoreData,
-)
-from custom_components.climate_proxy.const import RESTORE_KEY_CURRENT_OPTION
 
 
 def _make_entity() -> ClimateProxySelectEntity:
@@ -107,9 +104,7 @@ class TestClimateProxySelectEntity:
     async def test_dropped_when_unavailable(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("select.test_select", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("select.test_select", STATE_UNAVAILABLE))
         entity.hass.services.async_call = AsyncMock()
         entity.async_write_ha_state = MagicMock()
 

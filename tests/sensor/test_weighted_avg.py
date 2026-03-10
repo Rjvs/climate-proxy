@@ -6,16 +6,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.climate_proxy.sensor.weighted_avg import (
-    WeightedAvgHumiditySensor,
-    WeightedAvgTemperatureSensor,
-)
 from custom_components.climate_proxy.const import (
     CONF_HUMIDITY_SENSORS,
     CONF_SENSOR_ENTITY_ID,
     CONF_SENSOR_WEIGHT,
     CONF_TEMPERATURE_SENSORS,
 )
+from custom_components.climate_proxy.sensor.weighted_avg import WeightedAvgHumiditySensor, WeightedAvgTemperatureSensor
 
 
 def _make_temp_sensor(sensor_configs: list[dict]) -> WeightedAvgTemperatureSensor:
@@ -146,7 +143,7 @@ class TestWeightedAvgSensorTranslationKey:
 
     def test_temperature_sensor_has_no_hardcoded_name(self) -> None:
         entity = _make_temp_sensor([])
-        assert entity._attr_name is None
+        assert entity._attr_has_entity_name is True
 
     def test_humidity_sensor_uses_translation_key(self) -> None:
         entity = _make_humidity_sensor([])
@@ -154,4 +151,4 @@ class TestWeightedAvgSensorTranslationKey:
 
     def test_humidity_sensor_has_no_hardcoded_name(self) -> None:
         entity = _make_humidity_sensor([])
-        assert entity._attr_name is None
+        assert entity._attr_has_entity_name is True

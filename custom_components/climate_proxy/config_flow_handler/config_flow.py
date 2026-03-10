@@ -18,14 +18,8 @@ from typing import Any
 
 from homeassistant import config_entries
 
-from ..const import (
-    CONF_CLIMATE_ENTITY_ID,
-    CONF_HUMIDITY_SENSORS,
-    CONF_PROXY_NAME,
-    CONF_TEMPERATURE_SENSORS,
-    DOMAIN,
-)
-from .helpers import build_sensor_list, extract_entity_ids, extract_weights
+from ..const import CONF_CLIMATE_ENTITY_ID, CONF_HUMIDITY_SENSORS, CONF_PROXY_NAME, CONF_TEMPERATURE_SENSORS, DOMAIN
+from .helpers import build_sensor_list
 from .options_flow import ClimateProxyOptionsFlow
 from .schemas.config import (
     get_humidity_sensors_schema,
@@ -119,10 +113,12 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=get_user_schema({
-                CONF_PROXY_NAME: entry.data.get(CONF_PROXY_NAME, ""),
-                CONF_CLIMATE_ENTITY_ID: entry.data.get(CONF_CLIMATE_ENTITY_ID, ""),
-            }),
+            data_schema=get_user_schema(
+                {
+                    CONF_PROXY_NAME: entry.data.get(CONF_PROXY_NAME, ""),
+                    CONF_CLIMATE_ENTITY_ID: entry.data.get(CONF_CLIMATE_ENTITY_ID, ""),
+                }
+            ),
             errors=errors,
         )
 
@@ -139,9 +135,8 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             self._temp_sensor_ids = user_input.get("temperature_sensor_ids", [])
             if self._temp_sensor_ids:
                 return await self.async_step_temp_weights()
-            else:
-                self._temp_sensors = []
-                return await self.async_step_humidity_sensors()
+            self._temp_sensors = []
+            return await self.async_step_humidity_sensors()
 
         return self.async_show_form(
             step_id="temp_sensors",
@@ -179,9 +174,8 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             self._humidity_sensor_ids = user_input.get("humidity_sensor_ids", [])
             if self._humidity_sensor_ids:
                 return await self.async_step_humidity_weights()
-            else:
-                self._humidity_sensors = []
-                return self._create_entry()
+            self._humidity_sensors = []
+            return self._create_entry()
 
         return self.async_show_form(
             step_id="humidity_sensors",
@@ -198,7 +192,9 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Handle weight assignment for humidity sensors."""
         if user_input is not None:
-            self._humidity_sensors = build_sensor_list(self._humidity_sensor_ids, {k: float(v) for k, v in user_input.items()})
+            self._humidity_sensors = build_sensor_list(
+                self._humidity_sensor_ids, {k: float(v) for k, v in user_input.items()}
+            )
             return self._create_entry()
 
         return self.async_show_form(

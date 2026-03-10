@@ -21,9 +21,7 @@ PARALLEL_UPDATES = 0
 
 
 class WeightedAvgTemperatureSensor(SensorEntity):
-    """
-    Diagnostic sensor that exposes the weighted average of all configured
-    temperature sensors for this climate_proxy entry.
+    """Diagnostic sensor reporting the weighted-average of configured temperature sensors.
 
     Its value is recomputed on demand by reading the current HA state of each
     contributing sensor; no polling is required because the state manager calls
@@ -79,9 +77,7 @@ class WeightedAvgTemperatureSensor(SensorEntity):
 
 
 class WeightedAvgHumiditySensor(SensorEntity):
-    """
-    Diagnostic sensor that exposes the weighted average of all configured
-    humidity sensors for this climate_proxy entry.
+    """Diagnostic sensor reporting the weighted-average of configured humidity sensors.
 
     Its value is recomputed on demand by reading the current HA state of each
     contributing sensor; no polling is required because the state manager calls

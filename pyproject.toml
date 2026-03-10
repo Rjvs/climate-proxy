@@ -187,6 +187,7 @@ ignore = [
     "D213",     # Multi-line docstring summary should start at the second line
     "D406",     # Section name should end with a newline
     "D407",     # Section name underlining
+    "D107",     # Missing docstring in __init__ — class docstring is sufficient
     "D417",     # Missing argument descriptions in docstring - to allow documenting only non-obvious parameters
     "E501",     # line too long
 
@@ -241,6 +242,9 @@ ignore = [
     "PLE0605",
 
     "FURB116",
+
+    # Relative imports within a package are idiomatic in HA integrations
+    "TID252",
 ]
 
 [tool.ruff.lint.flake8-import-conventions.extend-aliases]
@@ -276,6 +280,9 @@ split-on-trailing-comma = false
     "PLR2004", # Magic values are fine in tests
     "D",       # Docstrings not required in tests
     "PTH",     # Use pathlib - temporary exemption for tests
+    "SLF001",  # Private member access is necessary in tests
+    "PLC0415", # Conditional imports (e.g. MockConfigEntry fallback) are allowed in tests
+    "TID251",  # Importing from conftest within the tests package is fine
 ]
 
 [tool.ruff.lint.mccabe]

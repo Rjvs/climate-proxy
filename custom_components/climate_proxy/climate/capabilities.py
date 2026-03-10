@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 from homeassistant.components.climate import ClimateEntityFeature, HVACMode
@@ -28,10 +29,12 @@ def detect_supported_features(state: State) -> ClimateEntityFeature:
     if HVACMode.OFF in hvac_modes:
         features |= ClimateEntityFeature.TURN_OFF
 
-    if "target_temperature" in attrs:
+    # HA exposes target temperature as ATTR_TEMPERATURE = "temperature" on the state dict
+    if "temperature" in attrs:
         features |= ClimateEntityFeature.TARGET_TEMPERATURE
 
-    if "target_temperature_low" in attrs or "target_temperature_high" in attrs:
+    # HA uses "target_temp_low" / "target_temp_high" for range mode
+    if "target_temp_low" in attrs or "target_temp_high" in attrs:
         features |= ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 
     # HA exposes target humidity as ATTR_HUMIDITY = "humidity" on the state dict
@@ -54,9 +57,6 @@ def detect_supported_features(state: State) -> ClimateEntityFeature:
     if swing_horizontal_modes:
         features |= ClimateEntityFeature.SWING_HORIZONTAL_MODE
 
-    if "aux_heat" in attrs:
-        features |= ClimateEntityFeature.AUX_HEAT
-
     return features
 
 
@@ -65,10 +65,8 @@ def extract_hvac_modes(state: State) -> list[HVACMode]:
     raw = state.attributes.get("hvac_modes", [])
     result = []
     for mode in raw:
-        try:
+        with contextlib.suppress(ValueError):
             result.append(HVACMode(mode))
-        except ValueError:
-            pass
     return result or [HVACMode.OFF]
 
 

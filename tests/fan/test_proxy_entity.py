@@ -5,18 +5,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+from custom_components.climate_proxy.const import RESTORE_KEY_IS_ON, RESTORE_KEY_PERCENTAGE, RESTORE_KEY_PRESET_MODE
+from custom_components.climate_proxy.fan.proxy_entity import ClimateProxyFanEntity, ClimateProxyFanRestoreData
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import State
-
-from custom_components.climate_proxy.fan.proxy_entity import (
-    ClimateProxyFanEntity,
-    ClimateProxyFanRestoreData,
-)
-from custom_components.climate_proxy.const import (
-    RESTORE_KEY_IS_ON,
-    RESTORE_KEY_PERCENTAGE,
-    RESTORE_KEY_PRESET_MODE,
-)
 
 
 def _make_entity() -> ClimateProxyFanEntity:
@@ -98,9 +91,7 @@ class TestClimateProxyFanEntity:
 
         entity.hass.services.async_call.assert_called_once()
         call_args = entity.hass.services.async_call.call_args
-        assert call_args[0][0] == "fan", (
-            "turn_off must use 'fan' domain, not 'homeassistant'"
-        )
+        assert call_args[0][0] == "fan", "turn_off must use 'fan' domain, not 'homeassistant'"
         assert call_args[0][1] == "turn_off"
 
     async def test_turn_on_updates_desired_state(self) -> None:
@@ -192,9 +183,7 @@ class TestClimateProxyFanEntity:
     async def test_dropped_when_unavailable(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("fan.test_fan", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("fan.test_fan", STATE_UNAVAILABLE))
         entity.hass.services.async_call = AsyncMock()
         entity.async_write_ha_state = MagicMock()
 

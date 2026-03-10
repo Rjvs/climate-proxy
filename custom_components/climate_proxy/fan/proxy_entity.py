@@ -37,6 +37,7 @@ class ClimateProxyFanRestoreData(ExtraStoredData):
         self._preset_mode = preset_mode
 
     def as_dict(self) -> dict[str, Any]:
+        """Return the stored data as a plain dict."""
         return {
             RESTORE_KEY_IS_ON: self._is_on,
             RESTORE_KEY_PERCENTAGE: self._percentage,
@@ -45,6 +46,7 @@ class ClimateProxyFanRestoreData(ExtraStoredData):
 
     @classmethod
     def from_dict(cls, restored: dict[str, Any]) -> ClimateProxyFanRestoreData:
+        """Reconstruct from a previously persisted dict."""
         raw_pct = restored.get(RESTORE_KEY_PERCENTAGE)
         return cls(
             is_on=bool(restored.get(RESTORE_KEY_IS_ON, False)),
@@ -255,7 +257,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
                         underlying_pct = int(raw_pct)
                         if underlying_pct != self._desired_percentage:
                             corrections["set_percentage"] = {"percentage": self._desired_percentage}
-                    except (ValueError, TypeError):
+                    except (ValueError, TypeError):  # fmt: skip
                         pass
 
             # Check preset mode deviation
@@ -286,9 +288,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         self._attr_supported_features = features
 
     @callback
-    def _on_underlying_state_changed(
-        self, event: Event[EventStateChangedData]
-    ) -> None:
+    def _on_underlying_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle state_changed on the underlying entity (sync HA callback)."""
         new_state: State | None = event.data.get("new_state")
         if new_state is None:
@@ -296,15 +296,11 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         # Mirror capabilities on each change
         self._mirror_capabilities(new_state)
         self.hass.async_create_task(
-            self._state_manager.async_enforce_control_entity(
-                self._underlying_entity_id, "fan", new_state
-            ),
+            self._state_manager.async_enforce_control_entity(self._underlying_entity_id, "fan", new_state),
             name=f"climate_proxy:fan_enforce:{self._underlying_entity_id}",
         )
 
-    async def _push_or_queue(
-        self, domain: str, service: str, kwargs: dict[str, Any]
-    ) -> None:
+    async def _push_or_queue(self, domain: str, service: str, kwargs: dict[str, Any]) -> None:
         """Push a fan service call to the underlying entity, or queue if unavailable."""
         underlying = self.hass.states.get(self._underlying_entity_id)
         if underlying is not None and underlying.state not in (

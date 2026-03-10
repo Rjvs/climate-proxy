@@ -5,10 +5,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from homeassistant.const import STATE_UNAVAILABLE
-from homeassistant.core import State
 
 from custom_components.climate_proxy.state_manager.manager import ClimateProxyStateManager
+from homeassistant.core import State
 
 
 def _make_manager() -> ClimateProxyStateManager:
@@ -112,9 +111,7 @@ class TestPendingStateQueue:
 
         await manager._async_drain_pending_state()
 
-        climate_proxy.async_apply_pending_state.assert_called_once_with(
-            {"set_hvac_mode": {"hvac_mode": "heat"}}
-        )
+        climate_proxy.async_apply_pending_state.assert_called_once_with({"set_hvac_mode": {"hvac_mode": "heat"}})
         assert manager.pending_state == {}
 
     async def test_drain_does_nothing_when_empty(self) -> None:

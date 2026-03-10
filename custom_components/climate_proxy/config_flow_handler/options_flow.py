@@ -18,10 +18,7 @@ from typing import Any
 
 from homeassistant import config_entries
 
-from ..const import (
-    CONF_HUMIDITY_SENSORS,
-    CONF_TEMPERATURE_SENSORS,
-)
+from ..const import CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS
 from .helpers import build_sensor_list, extract_entity_ids, extract_weights
 from .schemas.config import (
     get_humidity_sensors_schema,
@@ -78,9 +75,7 @@ class ClimateProxyOptionsFlow(config_entries.OptionsFlowWithReload):
         current_weights = extract_weights(current)
 
         if user_input is not None:
-            self._temp_sensors = build_sensor_list(
-                self._temp_sensor_ids, {k: float(v) for k, v in user_input.items()}
-            )
+            self._temp_sensors = build_sensor_list(self._temp_sensor_ids, {k: float(v) for k, v in user_input.items()})
             return await self.async_step_humidity_sensors()
 
         return self.async_show_form(

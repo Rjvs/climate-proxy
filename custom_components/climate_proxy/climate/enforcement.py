@@ -4,21 +4,21 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.climate import HVACMode
-from homeassistant.components.climate.const import (
-    ATTR_AUX_HEAT,
+from homeassistant.components.climate import (
     ATTR_FAN_MODE,
     ATTR_HUMIDITY,
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
-    ATTR_SWING_HORIZONTAL_MODE,
     ATTR_SWING_MODE,
+    HVACMode,
+)
+from homeassistant.components.climate.const import (
+    ATTR_SWING_HORIZONTAL_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
-    SERVICE_SET_AUX_HEAT,
     SERVICE_SET_FAN_MODE,
-    SERVICE_SET_HVAC_MODE,
     SERVICE_SET_HUMIDITY,
+    SERVICE_SET_HVAC_MODE,
     SERVICE_SET_PRESET_MODE,
     SERVICE_SET_SWING_HORIZONTAL_MODE,
     SERVICE_SET_SWING_MODE,
@@ -43,12 +43,12 @@ def get_climate_corrections(
     desired_fan_mode: str | None,
     desired_swing_mode: str | None,
     desired_swing_horizontal_mode: str | None,
-    desired_aux_heat: bool | None,
     effective_target_temperature: float | None = None,
     effective_target_low: float | None = None,
     effective_target_high: float | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """
+    """Compare desired vs actual climate state and produce service-call corrections.
+
     Compare desired state against underlying entity's actual state and produce
     a dict of {service_name: kwargs} corrections needed.
 
@@ -126,14 +126,6 @@ def get_climate_corrections(
     if desired_swing_horizontal_mode is not None:
         actual_swing_h = attrs.get("swing_horizontal_mode")
         if actual_swing_h != desired_swing_horizontal_mode:
-            corrections[SERVICE_SET_SWING_HORIZONTAL_MODE] = {
-                ATTR_SWING_HORIZONTAL_MODE: desired_swing_horizontal_mode
-            }
-
-    # Aux heat
-    if desired_aux_heat is not None:
-        actual_aux = attrs.get("aux_heat")
-        if actual_aux != desired_aux_heat:
-            corrections[SERVICE_SET_AUX_HEAT] = {ATTR_AUX_HEAT: desired_aux_heat}
+            corrections[SERVICE_SET_SWING_HORIZONTAL_MODE] = {ATTR_SWING_HORIZONTAL_MODE: desired_swing_horizontal_mode}
 
     return corrections

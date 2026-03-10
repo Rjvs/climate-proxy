@@ -39,7 +39,7 @@ def calculate_weighted_average(
 
         try:
             value = float(state.state)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError):  # fmt: skip
             continue
 
         weighted_sum += value * weight

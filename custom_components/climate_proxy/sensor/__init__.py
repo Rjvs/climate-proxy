@@ -7,12 +7,7 @@ from typing import TYPE_CHECKING
 from homeassistant.const import Platform
 from homeassistant.helpers.device_registry import DeviceInfo
 
-from ..const import (
-    CONF_HUMIDITY_SENSORS,
-    CONF_TEMPERATURE_SENSORS,
-    DOMAIN,
-    LOGGER,
-)
+from ..const import CONF_HUMIDITY_SENSORS, CONF_TEMPERATURE_SENSORS, DOMAIN, LOGGER
 from .proxy_entity import ClimateProxySensorEntity
 from .weighted_avg import WeightedAvgHumiditySensor, WeightedAvgTemperatureSensor
 
@@ -46,29 +41,24 @@ async def async_setup_entry(
     # Fall back to a minimal DeviceInfo built from the domain + entry_id if the
     # climate entity has not been set up yet (which should not happen in practice
     # because the climate platform is registered before the sensor platform).
-    if (
-        state_manager.climate_proxy_entity is not None
-        and state_manager.climate_proxy_entity.device_info is not None
-    ):
+    if state_manager.climate_proxy_entity is not None and state_manager.climate_proxy_entity.device_info is not None:
         device_info: DeviceInfo = state_manager.climate_proxy_entity.device_info
     else:
         device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
-
-    entities: list = []
 
     # ------------------------------------------------------------------
     # Pass-through proxy sensors for every discovered sensor entity
     # ------------------------------------------------------------------
     discovered_sensors = entry.runtime_data.discovered_entities.get(Platform.SENSOR, [])
-    for underlying_entry in discovered_sensors:
-        entities.append(
-            ClimateProxySensorEntity(
-                config_entry=entry,
-                underlying_entry=underlying_entry,
-                state_manager=state_manager,
-                device_info=device_info,
-            )
+    entities: list = [
+        ClimateProxySensorEntity(
+            config_entry=entry,
+            underlying_entry=underlying_entry,
+            state_manager=state_manager,
+            device_info=device_info,
         )
+        for underlying_entry in discovered_sensors
+    ]
 
     LOGGER.debug(
         "climate_proxy %s: creating %d pass-through sensor entities",

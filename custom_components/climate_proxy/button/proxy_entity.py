@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import STATE_UNAVAILABLE
 
 from ..const import LOGGER
 
@@ -54,10 +54,7 @@ class ClimateProxyButtonEntity(ButtonEntity):
     async def async_press(self) -> None:
         """Forward the press action to the underlying button entity."""
         underlying = self.hass.states.get(self._underlying_entity_id)
-        if underlying is not None and underlying.state not in (
-            STATE_UNAVAILABLE,
-            STATE_UNKNOWN,
-        ):
+        if underlying is not None and underlying.state != STATE_UNAVAILABLE:
             await self.hass.services.async_call(
                 "button",
                 "press",

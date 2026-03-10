@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import State
 
 from custom_components.climate_proxy.sensor.proxy_entity import ClimateProxySensorEntity
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import State
 
 
 def _make_entity() -> ClimateProxySensorEntity:
@@ -57,26 +57,20 @@ class TestClimateProxySensorEntity:
 
     def test_mirrors_non_numeric_value(self) -> None:
         entity = _make_entity()
-        entity.hass.states.get = MagicMock(
-            return_value=State("sensor.status", "on", {})
-        )
+        entity.hass.states.get = MagicMock(return_value=State("sensor.status", "on", {}))
         entity.underlying_entity_id = "sensor.status"
         entity._refresh_from_underlying()
         assert entity._attr_native_value == "on"
 
     def test_unavailable_when_underlying_unavailable(self) -> None:
         entity = _make_entity()
-        entity.hass.states.get = MagicMock(
-            return_value=State("sensor.temperature", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("sensor.temperature", STATE_UNAVAILABLE))
         entity._refresh_from_underlying()
         assert entity.available is False
 
     def test_unavailable_when_underlying_unknown(self) -> None:
         entity = _make_entity()
-        entity.hass.states.get = MagicMock(
-            return_value=State("sensor.temperature", STATE_UNKNOWN)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("sensor.temperature", STATE_UNKNOWN))
         entity._refresh_from_underlying()
         assert entity.available is False
 
@@ -88,9 +82,7 @@ class TestClimateProxySensorEntity:
 
     def test_available_when_underlying_valid(self) -> None:
         entity = _make_entity()
-        entity.hass.states.get = MagicMock(
-            return_value=State("sensor.temperature", "21.5", {})
-        )
+        entity.hass.states.get = MagicMock(return_value=State("sensor.temperature", "21.5", {}))
         entity._refresh_from_underlying()
         assert entity.available is True
 
@@ -117,7 +109,5 @@ class TestClimateProxySensorEntity:
 
     def test_extra_state_attributes_none_when_unavailable(self) -> None:
         entity = _make_entity()
-        entity.hass.states.get = MagicMock(
-            return_value=State("sensor.temperature", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("sensor.temperature", STATE_UNAVAILABLE))
         assert entity.extra_state_attributes is None

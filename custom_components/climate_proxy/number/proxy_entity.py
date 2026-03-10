@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.number import NumberEntity, NumberMode
@@ -30,10 +31,12 @@ class ClimateProxyNumberRestoreData(ExtraStoredData):
         self._value = value
 
     def as_dict(self) -> dict[str, Any]:
+        """Return the stored data as a plain dict."""
         return {RESTORE_KEY_NATIVE_VALUE: self._value}
 
     @classmethod
     def from_dict(cls, restored: dict[str, Any]) -> ClimateProxyNumberRestoreData:
+        """Reconstruct from a previously persisted dict."""
         raw = restored.get(RESTORE_KEY_NATIVE_VALUE)
         return cls(float(raw) if raw is not None else None)
 
@@ -107,10 +110,8 @@ class ClimateProxyNumberEntity(NumberEntity, RestoreEntity):
                 STATE_UNAVAILABLE,
                 STATE_UNKNOWN,
             ):
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     self._desired_value = float(underlying.state)
-                except (ValueError, TypeError):
-                    pass
 
         self._unsub_state_change = async_track_state_change_event(
             self.hass,
@@ -172,7 +173,7 @@ class ClimateProxyNumberEntity(NumberEntity, RestoreEntity):
             return {}
         try:
             underlying_value = float(underlying_state.state)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError):  # fmt: skip
             return {}
         if abs(underlying_value - self._desired_value) > NUMBER_TOLERANCE:
             return {"set_value": {"value": self._desired_value}}
@@ -187,34 +188,24 @@ class ClimateProxyNumberEntity(NumberEntity, RestoreEntity):
         attrs = state.attributes
         raw_min = attrs.get("min")
         if raw_min is not None:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 self._attr_native_min_value = float(raw_min)
-            except (ValueError, TypeError):
-                pass
         raw_max = attrs.get("max")
         if raw_max is not None:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 self._attr_native_max_value = float(raw_max)
-            except (ValueError, TypeError):
-                pass
         raw_step = attrs.get("step")
         if raw_step is not None:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 self._attr_native_step = float(raw_step)
-            except (ValueError, TypeError):
-                pass
         raw_mode = attrs.get("mode")
         if raw_mode is not None:
-            try:
+            with contextlib.suppress(ValueError):
                 self._attr_mode = NumberMode(raw_mode)
-            except ValueError:
-                pass
         self._attr_native_unit_of_measurement = attrs.get("unit_of_measurement")
 
     @callback
-    def _on_underlying_state_changed(
-        self, event: Event[EventStateChangedData]
-    ) -> None:
+    def _on_underlying_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle state_changed on the underlying entity (sync HA callback)."""
         new_state: State | None = event.data.get("new_state")
         if new_state is None:
@@ -222,9 +213,7 @@ class ClimateProxyNumberEntity(NumberEntity, RestoreEntity):
         # Mirror capabilities on each change
         self._mirror_capabilities(new_state)
         self.hass.async_create_task(
-            self._state_manager.async_enforce_control_entity(
-                self._underlying_entity_id, "number", new_state
-            ),
+            self._state_manager.async_enforce_control_entity(self._underlying_entity_id, "number", new_state),
             name=f"climate_proxy:number_enforce:{self._underlying_entity_id}",
         )
 

@@ -5,13 +5,11 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from custom_components.climate_proxy.binary_sensor.proxy_entity import ClimateProxyBinarySensorEntity
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import State
-
-from custom_components.climate_proxy.binary_sensor.proxy_entity import (
-    ClimateProxyBinarySensorEntity,
-)
 
 
 def _make_entity(
@@ -86,33 +84,25 @@ class TestClimateProxyBinarySensorEntityProperties:
     def test_is_on_returns_true_when_underlying_on(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("binary_sensor.test_sensor", STATE_ON)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("binary_sensor.test_sensor", STATE_ON))
         assert entity.is_on is True
 
     def test_is_on_returns_false_when_underlying_off(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("binary_sensor.test_sensor", STATE_OFF)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("binary_sensor.test_sensor", STATE_OFF))
         assert entity.is_on is False
 
     def test_is_on_returns_none_when_underlying_unavailable(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("binary_sensor.test_sensor", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("binary_sensor.test_sensor", STATE_UNAVAILABLE))
         assert entity.is_on is None
 
     def test_is_on_returns_none_when_underlying_unknown(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("binary_sensor.test_sensor", STATE_UNKNOWN)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("binary_sensor.test_sensor", STATE_UNKNOWN))
         assert entity.is_on is None
 
     def test_is_on_returns_none_when_underlying_missing(self) -> None:
@@ -124,25 +114,19 @@ class TestClimateProxyBinarySensorEntityProperties:
     def test_available_true_when_underlying_on(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("binary_sensor.test_sensor", STATE_ON)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("binary_sensor.test_sensor", STATE_ON))
         assert entity.available is True
 
     def test_available_false_when_underlying_unavailable(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("binary_sensor.test_sensor", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("binary_sensor.test_sensor", STATE_UNAVAILABLE))
         assert entity.available is False
 
     def test_available_false_when_underlying_unknown(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("binary_sensor.test_sensor", STATE_UNKNOWN)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("binary_sensor.test_sensor", STATE_UNKNOWN))
         assert entity.available is False
 
     def test_available_false_when_underlying_missing(self) -> None:
@@ -174,9 +158,7 @@ class TestClimateProxyBinarySensorEntityProperties:
     def test_extra_state_attributes_returns_none_when_unavailable(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("binary_sensor.test_sensor", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("binary_sensor.test_sensor", STATE_UNAVAILABLE))
         assert entity.extra_state_attributes is None
 
     def test_extra_state_attributes_returns_none_when_missing(self) -> None:

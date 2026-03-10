@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from homeassistant.const import Platform
+import pytest
 
-from custom_components.climate_proxy.state_manager.entity_discovery import (
-    discover_underlying_entities,
-    get_underlying_device_id,
-)
+from custom_components.climate_proxy.state_manager.entity_discovery import discover_underlying_entities
+from homeassistant.const import Platform
 
 
 @pytest.mark.unit
@@ -43,7 +40,7 @@ class TestDiscoverUnderlyingEntities:
             other_mocks.append(entry)
 
         # All device entities = climate + others
-        all_entries = [climate_entry] + other_mocks
+        all_entries = [climate_entry, *other_mocks]
 
         entity_reg = MagicMock()
         entity_reg.async_get = MagicMock(return_value=climate_entry)
@@ -52,13 +49,18 @@ class TestDiscoverUnderlyingEntities:
         device_reg.async_get = MagicMock(return_value=device)
 
         with (
-            patch("custom_components.climate_proxy.state_manager.entity_discovery.er.async_get", return_value=entity_reg),
-            patch("custom_components.climate_proxy.state_manager.entity_discovery.dr.async_get", return_value=device_reg),
-            patch("custom_components.climate_proxy.state_manager.entity_discovery.er.async_entries_for_device", return_value=all_entries),
+            patch(
+                "custom_components.climate_proxy.state_manager.entity_discovery.er.async_get", return_value=entity_reg
+            ),
+            patch(
+                "custom_components.climate_proxy.state_manager.entity_discovery.dr.async_get", return_value=device_reg
+            ),
+            patch(
+                "custom_components.climate_proxy.state_manager.entity_discovery.er.async_entries_for_device",
+                return_value=all_entries,
+            ),
         ):
-            result = discover_underlying_entities(hass, climate_entity_id)
-
-        return result
+            return discover_underlying_entities(hass, climate_entity_id)
 
     def test_no_other_entities(self) -> None:
         result = self._setup_mocks("climate.test", "dev1", [])

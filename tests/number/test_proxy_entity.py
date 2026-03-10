@@ -5,14 +5,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+from custom_components.climate_proxy.const import RESTORE_KEY_NATIVE_VALUE
+from custom_components.climate_proxy.number.proxy_entity import ClimateProxyNumberEntity, ClimateProxyNumberRestoreData
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import State
-
-from custom_components.climate_proxy.number.proxy_entity import (
-    ClimateProxyNumberEntity,
-    ClimateProxyNumberRestoreData,
-)
-from custom_components.climate_proxy.const import NUMBER_TOLERANCE, RESTORE_KEY_NATIVE_VALUE
 
 
 def _make_entity() -> ClimateProxyNumberEntity:
@@ -112,9 +109,7 @@ class TestClimateProxyNumberEntity:
     async def test_set_native_value_updates_desired(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("number.test_number", "45.0")
-        )
+        entity.hass.states.get = MagicMock(return_value=State("number.test_number", "45.0"))
         entity.hass.services.async_call = AsyncMock()
         entity.async_write_ha_state = MagicMock()
 
@@ -127,9 +122,7 @@ class TestClimateProxyNumberEntity:
     async def test_dropped_when_unavailable(self) -> None:
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("number.test_number", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("number.test_number", STATE_UNAVAILABLE))
         entity.hass.services.async_call = AsyncMock()
         entity.async_write_ha_state = MagicMock()
 
@@ -152,9 +145,7 @@ class TestClimateProxyNumberEntity:
         """E5: service calls must use target= kwarg, not entity_id in service_data."""
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("number.test_number", "45.0")
-        )
+        entity.hass.states.get = MagicMock(return_value=State("number.test_number", "45.0"))
         entity.hass.services.async_call = AsyncMock()
         entity.async_write_ha_state = MagicMock()
 

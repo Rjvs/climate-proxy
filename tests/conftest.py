@@ -3,12 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
-from homeassistant.components.climate import HVACMode
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, State
 
 from custom_components.climate_proxy.const import (
     CONF_CLIMATE_ENTITY_ID,
@@ -17,14 +13,15 @@ from custom_components.climate_proxy.const import (
     CONF_SENSOR_ENTITY_ID,
     CONF_SENSOR_WEIGHT,
     CONF_TEMPERATURE_SENSORS,
-    DOMAIN,
 )
+from homeassistant.components.climate import HVACMode
+from homeassistant.core import State
 
 
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Auto-enable custom integrations for all tests."""
-    yield
+    return
 
 
 def create_mock_climate_state(
