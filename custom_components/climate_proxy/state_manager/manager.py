@@ -136,7 +136,8 @@ class ClimateProxyStateManager:
                 and new_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
             ):
                 await self._async_drain_pending_state()
-                return  # drain already applies corrections
+                # Fall through: always enforce desired state after reconnect, even if
+                # nothing was queued — the device may have come back in a different state.
 
             # Enforce desired state if not in debounce window
             if not self._correcting:
@@ -272,7 +273,6 @@ class ClimateProxyStateManager:
     async def _clear_debounce(self) -> None:
         try:
             await asyncio.sleep(ENFORCEMENT_DEBOUNCE_SECONDS)
-        except asyncio.CancelledError:
-            pass
-        finally:
             self._correcting = False
+        except asyncio.CancelledError:
+            pass  # A newer debounce is now running; it will clear _correcting when it expires.

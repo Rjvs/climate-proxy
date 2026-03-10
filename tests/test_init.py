@@ -22,8 +22,6 @@ from .conftest import create_mock_climate_state
 
 def _make_entry(hass: HomeAssistant):
     """Create and return a MockConfigEntry for climate_proxy."""
-    from homeassistant.config_entries import ConfigEntry
-
     return _mock_entry(
         domain=DOMAIN,
         data={

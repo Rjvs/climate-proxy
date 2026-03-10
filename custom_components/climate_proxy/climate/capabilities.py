@@ -28,14 +28,14 @@ def detect_supported_features(state: State) -> ClimateEntityFeature:
     if HVACMode.OFF in hvac_modes:
         features |= ClimateEntityFeature.TURN_OFF
 
-    if attrs.get("target_temperature") is not None or "target_temperature" in attrs:
+    if "target_temperature" in attrs:
         features |= ClimateEntityFeature.TARGET_TEMPERATURE
 
     if "target_temperature_low" in attrs or "target_temperature_high" in attrs:
         features |= ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 
     # HA exposes target humidity as ATTR_HUMIDITY = "humidity" on the state dict
-    if attrs.get("humidity") is not None or "humidity" in attrs:
+    if "humidity" in attrs:
         features |= ClimateEntityFeature.TARGET_HUMIDITY
 
     fan_modes = attrs.get("fan_modes")
