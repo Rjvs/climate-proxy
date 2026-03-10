@@ -28,7 +28,6 @@ class TestGetClimateCorrections:
             desired_preset_mode=None,
             desired_fan_mode=None,
             desired_swing_mode=None,
-            desired_aux_heat=None,
         )
         assert corrections == {}
 
@@ -44,7 +43,6 @@ class TestGetClimateCorrections:
             desired_preset_mode=None,
             desired_fan_mode=None,
             desired_swing_mode=None,
-            desired_aux_heat=None,
         )
         assert "set_hvac_mode" in corrections
         assert corrections["set_hvac_mode"]["hvac_mode"] == HVACMode.HEAT
@@ -61,7 +59,6 @@ class TestGetClimateCorrections:
             desired_preset_mode=None,
             desired_fan_mode=None,
             desired_swing_mode=None,
-            desired_aux_heat=None,
         )
         assert "set_temperature" in corrections
         assert corrections["set_temperature"]["temperature"] == 21.0
@@ -79,7 +76,6 @@ class TestGetClimateCorrections:
             desired_preset_mode=None,
             desired_fan_mode=None,
             desired_swing_mode=None,
-            desired_aux_heat=None,
         )
         assert "set_temperature" not in corrections
 
@@ -114,7 +110,6 @@ class TestGetClimateCorrections:
             desired_preset_mode=None,
             desired_fan_mode="high",
             desired_swing_mode=None,
-            desired_aux_heat=None,
         )
         assert "set_fan_mode" in corrections
         assert corrections["set_fan_mode"]["fan_mode"] == "high"
@@ -131,7 +126,6 @@ class TestGetClimateCorrections:
             desired_preset_mode=None,
             desired_fan_mode="high",
             desired_swing_mode=None,
-            desired_aux_heat=None,
         )
         assert "set_hvac_mode" in corrections
         assert "set_temperature" in corrections

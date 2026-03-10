@@ -6,7 +6,6 @@ import contextlib
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.climate import (
-    ATTR_AUX_HEAT,
     ATTR_FAN_MODE,
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
@@ -20,7 +19,6 @@ from homeassistant.components.climate.const import (
     ATTR_HVAC_ACTION,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
-    SERVICE_SET_AUX_HEAT,
     SERVICE_SET_FAN_MODE,
     SERVICE_SET_HUMIDITY,
     SERVICE_SET_HVAC_MODE,
@@ -35,7 +33,6 @@ from ..const import (
     CONF_HUMIDITY_SENSORS,
     CONF_TEMPERATURE_SENSORS,
     LOGGER,
-    RESTORE_KEY_AUX_HEAT,
     RESTORE_KEY_CURRENT_OFFSET,
     RESTORE_KEY_FAN_MODE,
     RESTORE_KEY_HVAC_MODE,
@@ -143,7 +140,6 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         self._desired_preset_mode: str | None = None
         self._desired_fan_mode: str | None = None
         self._desired_swing_mode: str | None = None
-        self._desired_aux_heat: bool | None = None
 
         # Current readings (from underlying entity or external sensors)
         self._attr_current_temperature: float | None = None
@@ -189,7 +185,6 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
                 RESTORE_KEY_PRESET_MODE: self._desired_preset_mode,
                 RESTORE_KEY_FAN_MODE: self._desired_fan_mode,
                 RESTORE_KEY_SWING_MODE: self._desired_swing_mode,
-                RESTORE_KEY_AUX_HEAT: self._desired_aux_heat,
                 RESTORE_KEY_CURRENT_OFFSET: self._current_offset,
             }
         )
@@ -206,7 +201,6 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         self._desired_preset_mode = data.get(RESTORE_KEY_PRESET_MODE)
         self._desired_fan_mode = data.get(RESTORE_KEY_FAN_MODE)
         self._desired_swing_mode = data.get(RESTORE_KEY_SWING_MODE)
-        self._desired_aux_heat = data.get(RESTORE_KEY_AUX_HEAT)
         self._current_offset = float(data.get(RESTORE_KEY_CURRENT_OFFSET, 0.0))
 
     # ------------------------------------------------------------------
@@ -254,11 +248,6 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
     def swing_mode(self) -> str | None:
         """Return the desired swing mode."""
         return self._desired_swing_mode
-
-    @property
-    def is_aux_heat(self) -> bool | None:
-        """Return the desired aux heat state."""
-        return self._desired_aux_heat
 
     @property
     def available(self) -> bool:
@@ -333,12 +322,6 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         self.async_write_ha_state()
         await self._push_or_queue(SERVICE_SET_SWING_MODE, {ATTR_SWING_MODE: swing_mode})
 
-    async def async_set_aux_heat(self, aux_heat: bool) -> None:
-        """Set the aux heat state."""
-        self._desired_aux_heat = aux_heat
-        self.async_write_ha_state()
-        await self._push_or_queue(SERVICE_SET_AUX_HEAT, {ATTR_AUX_HEAT: aux_heat})
-
     async def async_turn_on(self) -> None:
         """Turn on the climate entity."""
         # Set to the first non-OFF mode, or HEAT_COOL if available
@@ -401,7 +384,6 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
             desired_preset_mode=self._desired_preset_mode,
             desired_fan_mode=self._desired_fan_mode,
             desired_swing_mode=self._desired_swing_mode,
-            desired_aux_heat=self._desired_aux_heat,
             effective_target_temperature=effective_temp,
             effective_target_low=effective_low,
             effective_target_high=effective_high,

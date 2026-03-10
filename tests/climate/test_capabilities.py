@@ -32,7 +32,6 @@ class TestDetectSupportedFeatures:
                 "preset_modes": ["eco", "comfort"],
                 "swing_modes": ["on", "off"],
                 "target_humidity": 50,
-                "aux_heat": False,
             }
         )
         features = detect_supported_features(state)
@@ -43,7 +42,6 @@ class TestDetectSupportedFeatures:
         assert features & ClimateEntityFeature.PRESET_MODE
         assert features & ClimateEntityFeature.SWING_MODE
         assert features & ClimateEntityFeature.TARGET_HUMIDITY
-        assert features & ClimateEntityFeature.AUX_HEAT
 
     def test_off_only_device(self) -> None:
         state = _state({"hvac_modes": [HVACMode.OFF]})

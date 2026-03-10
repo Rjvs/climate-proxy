@@ -50,9 +50,6 @@ def detect_supported_features(state: State) -> ClimateEntityFeature:
     if swing_modes:
         features |= ClimateEntityFeature.SWING_MODE
 
-    if "aux_heat" in attrs:
-        features |= ClimateEntityFeature.AUX_HEAT
-
     return features
 
 

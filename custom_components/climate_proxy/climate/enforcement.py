@@ -6,14 +6,12 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.components.climate.const import (
-    ATTR_AUX_HEAT,
     ATTR_FAN_MODE,
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
     ATTR_SWING_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
-    SERVICE_SET_AUX_HEAT,
     SERVICE_SET_FAN_MODE,
     SERVICE_SET_HUMIDITY,
     SERVICE_SET_HVAC_MODE,
@@ -39,7 +37,6 @@ def get_climate_corrections(
     desired_preset_mode: str | None,
     desired_fan_mode: str | None,
     desired_swing_mode: str | None,
-    desired_aux_heat: bool | None,
     effective_target_temperature: float | None = None,
     effective_target_low: float | None = None,
     effective_target_high: float | None = None,
@@ -110,11 +107,5 @@ def get_climate_corrections(
         actual_swing = attrs.get("swing_mode")
         if actual_swing != desired_swing_mode:
             corrections[SERVICE_SET_SWING_MODE] = {ATTR_SWING_MODE: desired_swing_mode}
-
-    # Aux heat
-    if desired_aux_heat is not None:
-        actual_aux = attrs.get("aux_heat")
-        if actual_aux != desired_aux_heat:
-            corrections[SERVICE_SET_AUX_HEAT] = {ATTR_AUX_HEAT: desired_aux_heat}
 
     return corrections
