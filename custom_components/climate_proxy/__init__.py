@@ -55,7 +55,8 @@ async def async_setup_entry(
     3. Create StateManager and store runtime data.
     4. Forward setup to active platforms.
     5. Subscribe StateManager to state_changed events.
-    6. Register reload listener.
+
+    Reloads on options change are handled automatically by OptionsFlowWithReload.
     """
     climate_entity_id = entry.data[CONF_CLIMATE_ENTITY_ID]
 
@@ -94,8 +95,6 @@ async def async_setup_entry(
     # Subscribe to events after entities are created
     await state_manager.async_setup()
 
-    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
-
     return True
 
 
@@ -108,11 +107,3 @@ async def async_unload_entry(
     return await hass.config_entries.async_unload_platforms(
         entry, entry.runtime_data.active_platforms
     )
-
-
-async def async_reload_entry(
-    hass: HomeAssistant,
-    entry: ClimateProxyConfigEntry,
-) -> None:
-    """Reload config entry when options change."""
-    await hass.config_entries.async_reload(entry.entry_id)

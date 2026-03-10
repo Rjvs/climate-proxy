@@ -9,7 +9,7 @@ Config flow for climate_proxy.
     5. async_step_humidity_weights — set weight per sensor (skipped if none selected)
 
 Reconfigure flow (async_step_reconfigure): change underlying entity or rename.
-Options flow runs steps 2–5 with current values pre-filled.
+Options flow is in options_flow.py (ClimateProxyOptionsFlow).
 """
 
 from __future__ import annotations
@@ -22,11 +22,11 @@ from ..const import (
     CONF_CLIMATE_ENTITY_ID,
     CONF_HUMIDITY_SENSORS,
     CONF_PROXY_NAME,
-    CONF_SENSOR_ENTITY_ID,
-    CONF_SENSOR_WEIGHT,
     CONF_TEMPERATURE_SENSORS,
     DOMAIN,
 )
+from .helpers import build_sensor_list, extract_entity_ids, extract_weights
+from .options_flow import ClimateProxyOptionsFlow
 from .schemas.config import (
     get_humidity_sensors_schema,
     get_humidity_weights_schema,
@@ -34,25 +34,6 @@ from .schemas.config import (
     get_temperature_weights_schema,
     get_user_schema,
 )
-
-
-
-def _build_sensor_list(entity_ids: list[str], weights: dict[str, float]) -> list[dict[str, Any]]:
-    """Convert parallel lists of entity_ids and weights dict to sensor config list."""
-    return [
-        {CONF_SENSOR_ENTITY_ID: eid, CONF_SENSOR_WEIGHT: weights.get(eid, 1.0)}
-        for eid in entity_ids
-    ]
-
-
-def _extract_entity_ids(sensor_list: list[dict[str, Any]]) -> list[str]:
-    """Extract entity IDs from sensor config list."""
-    return [s[CONF_SENSOR_ENTITY_ID] for s in sensor_list]
-
-
-def _extract_weights(sensor_list: list[dict[str, Any]]) -> dict[str, float]:
-    """Extract {entity_id: weight} dict from sensor config list."""
-    return {s[CONF_SENSOR_ENTITY_ID]: float(s.get(CONF_SENSOR_WEIGHT, 1.0)) for s in sensor_list}
 
 
 class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -177,7 +158,7 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Handle weight assignment for temperature sensors."""
         if user_input is not None:
-            self._temp_sensors = _build_sensor_list(self._temp_sensor_ids, {k: float(v) for k, v in user_input.items()})
+            self._temp_sensors = build_sensor_list(self._temp_sensor_ids, {k: float(v) for k, v in user_input.items()})
             return await self.async_step_humidity_sensors()
 
         return self.async_show_form(
@@ -217,7 +198,7 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Handle weight assignment for humidity sensors."""
         if user_input is not None:
-            self._humidity_sensors = _build_sensor_list(self._humidity_sensor_ids, {k: float(v) for k, v in user_input.items()})
+            self._humidity_sensors = build_sensor_list(self._humidity_sensor_ids, {k: float(v) for k, v in user_input.items()})
             return self._create_entry()
 
         return self.async_show_form(
@@ -243,102 +224,4 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
 
-class ClimateProxyOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow — reconfigure sensors and weights after initial setup."""
-
-    def __init__(self) -> None:
-        self._temp_sensor_ids: list[str] = []
-        self._temp_sensors: list[dict[str, Any]] = []
-        self._humidity_sensor_ids: list[str] = []
-        self._humidity_sensors: list[dict[str, Any]] = []
-
-    async def async_step_init(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> config_entries.ConfigFlowResult:
-        """Entry point — jump to temperature sensor selection."""
-        # Pre-load current values
-        current_temp = self.config_entry.options.get(CONF_TEMPERATURE_SENSORS, [])
-        self._temp_sensor_ids = _extract_entity_ids(current_temp)
-        current_humidity = self.config_entry.options.get(CONF_HUMIDITY_SENSORS, [])
-        self._humidity_sensor_ids = _extract_entity_ids(current_humidity)
-        return await self.async_step_temp_sensors()
-
-    async def async_step_temp_sensors(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> config_entries.ConfigFlowResult:
-        """Select temperature sensors."""
-        if user_input is not None:
-            self._temp_sensor_ids = user_input.get("temperature_sensor_ids", [])
-            if self._temp_sensor_ids:
-                return await self.async_step_temp_weights()
-            self._temp_sensors = []
-            return await self.async_step_humidity_sensors()
-
-        return self.async_show_form(
-            step_id="temp_sensors",
-            data_schema=get_temperature_sensors_schema(self._temp_sensor_ids),
-        )
-
-    async def async_step_temp_weights(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> config_entries.ConfigFlowResult:
-        """Set weights for temperature sensors."""
-        current = self.config_entry.options.get(CONF_TEMPERATURE_SENSORS, [])
-        current_weights = _extract_weights(current)
-
-        if user_input is not None:
-            self._temp_sensors = _build_sensor_list(self._temp_sensor_ids, {k: float(v) for k, v in user_input.items()})
-            return await self.async_step_humidity_sensors()
-
-        return self.async_show_form(
-            step_id="temp_weights",
-            data_schema=get_temperature_weights_schema(self._temp_sensor_ids, current_weights),
-        )
-
-    async def async_step_humidity_sensors(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> config_entries.ConfigFlowResult:
-        """Select humidity sensors."""
-        if user_input is not None:
-            self._humidity_sensor_ids = user_input.get("humidity_sensor_ids", [])
-            if self._humidity_sensor_ids:
-                return await self.async_step_humidity_weights()
-            self._humidity_sensors = []
-            return self._create_options_entry()
-
-        return self.async_show_form(
-            step_id="humidity_sensors",
-            data_schema=get_humidity_sensors_schema(self._humidity_sensor_ids),
-        )
-
-    async def async_step_humidity_weights(
-        self,
-        user_input: dict[str, Any] | None = None,
-    ) -> config_entries.ConfigFlowResult:
-        """Set weights for humidity sensors."""
-        current = self.config_entry.options.get(CONF_HUMIDITY_SENSORS, [])
-        current_weights = _extract_weights(current)
-
-        if user_input is not None:
-            self._humidity_sensors = _build_sensor_list(self._humidity_sensor_ids, {k: float(v) for k, v in user_input.items()})
-            return self._create_options_entry()
-
-        return self.async_show_form(
-            step_id="humidity_weights",
-            data_schema=get_humidity_weights_schema(self._humidity_sensor_ids, current_weights),
-        )
-
-    def _create_options_entry(self) -> config_entries.ConfigFlowResult:
-        return self.async_create_entry(
-            data={
-                CONF_TEMPERATURE_SENSORS: self._temp_sensors,
-                CONF_HUMIDITY_SENSORS: self._humidity_sensors,
-            }
-        )
-
-
-__all__ = ["ClimateProxyConfigFlowHandler", "ClimateProxyOptionsFlow"]
+__all__ = ["ClimateProxyConfigFlowHandler"]

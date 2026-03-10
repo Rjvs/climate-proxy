@@ -17,24 +17,6 @@ from custom_components.climate_proxy.const import (
     DOMAIN,
 )
 
-from .conftest import create_mock_climate_state
-
-
-def _make_entry(hass: HomeAssistant):
-    """Create and return a MockConfigEntry for climate_proxy."""
-    return _mock_entry(
-        domain=DOMAIN,
-        data={
-            CONF_PROXY_NAME: "Test Proxy",
-            CONF_CLIMATE_ENTITY_ID: "climate.test_thermostat",
-        },
-        options={
-            CONF_TEMPERATURE_SENSORS: [],
-            CONF_HUMIDITY_SENSORS: [],
-        },
-    )
-
-
 def _mock_entry(**kwargs):
     """Build a MockConfigEntry without importing from a test-only module."""
     try:
