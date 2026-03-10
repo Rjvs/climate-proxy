@@ -92,7 +92,6 @@ class TestGetClimateCorrections:
             desired_preset_mode=None,
             desired_fan_mode=None,
             desired_swing_mode=None,
-            desired_aux_heat=None,
             effective_target_temperature=23.0,  # offset-adjusted
         )
         assert "set_temperature" in corrections
