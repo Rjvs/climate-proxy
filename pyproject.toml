@@ -241,6 +241,10 @@ ignore = [
     "PLE0605",
 
     "FURB116",
+
+    # HA integrations use relative imports by convention; absolute imports would
+    # require hard-coding the custom_components package path which breaks HACS installs.
+    "TID252",
 ]
 
 [tool.ruff.lint.flake8-import-conventions.extend-aliases]
@@ -276,6 +280,11 @@ split-on-trailing-comma = false
     "PLR2004", # Magic values are fine in tests
     "D",       # Docstrings not required in tests
     "PTH",     # Use pathlib - temporary exemption for tests
+    "SLF001",  # Private member access is necessary in unit tests
+    "PLC0415", # Conditional imports are acceptable in test fixtures
+    "F401",    # Unused imports acceptable in test files (re-exported fixtures)
+    "TID251",  # Relative imports within the tests package are expected
+    "E402",    # Import order in conftest fixtures is unavoidable
 ]
 
 [tool.ruff.lint.mccabe]

@@ -4,22 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.climate_proxy.const import PARALLEL_UPDATES as PARALLEL_UPDATES
-from homeassistant.components.binary_sensor import BinarySensorEntityDescription
+from homeassistant.const import Platform
+from homeassistant.helpers.device_registry import DeviceInfo
 
-from .connectivity import ENTITY_DESCRIPTIONS as CONNECTIVITY_DESCRIPTIONS, ClimateProxyConnectivitySensor
-from .filter import ENTITY_DESCRIPTIONS as FILTER_DESCRIPTIONS, ClimateProxyFilterSensor
+from ..const import DOMAIN, PARALLEL_UPDATES as PARALLEL_UPDATES
+from .proxy_entity import ClimateProxyBinarySensorEntity
 
 if TYPE_CHECKING:
-    from custom_components.climate_proxy.data import ClimateProxyConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-# Combine all entity descriptions from different modules
-ENTITY_DESCRIPTIONS: tuple[BinarySensorEntityDescription, ...] = (
-    *CONNECTIVITY_DESCRIPTIONS,
-    *FILTER_DESCRIPTIONS,
-)
+    from ..data import ClimateProxyConfigEntry
 
 
 async def async_setup_entry(
@@ -27,24 +22,13 @@ async def async_setup_entry(
     entry: ClimateProxyConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the binary_sensor platform."""
-    # Create connectivity sensors
-    connectivity_entities = [
-        ClimateProxyConnectivitySensor(
-            coordinator=entry.runtime_data.coordinator,
-            entity_description=entity_description,
-        )
-        for entity_description in CONNECTIVITY_DESCRIPTIONS
-    ]
+    """Set up binary sensor proxy entities."""
+    discovered = entry.runtime_data.discovered_entities.get(Platform.BINARY_SENSOR, [])
+    device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+    state_manager = entry.runtime_data.state_manager
 
-    # Create filter sensors
-    filter_entities = [
-        ClimateProxyFilterSensor(
-            coordinator=entry.runtime_data.coordinator,
-            entity_description=entity_description,
-        )
-        for entity_description in FILTER_DESCRIPTIONS
+    entities = [
+        ClimateProxyBinarySensorEntity(entry, underlying_entry, state_manager, device_info)
+        for underlying_entry in discovered
     ]
-
-    # Add all entities
-    async_add_entities([*connectivity_entities, *filter_entities])
+    async_add_entities(entities)

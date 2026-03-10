@@ -4,30 +4,33 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.climate_proxy.const import PARALLEL_UPDATES as PARALLEL_UPDATES
-from homeassistant.components.fan import FanEntityDescription
+from homeassistant.const import Platform
+from homeassistant.helpers.device_registry import DeviceInfo
 
-from .air_purifier_fan import ENTITY_DESCRIPTIONS as FAN_DESCRIPTIONS, ClimateProxyFan
+from ..const import DOMAIN, PARALLEL_UPDATES as PARALLEL_UPDATES
+from .proxy_entity import ClimateProxyFanEntity
 
 if TYPE_CHECKING:
-    from custom_components.climate_proxy.data import ClimateProxyConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-# Combine all entity descriptions from different modules
-ENTITY_DESCRIPTIONS: tuple[FanEntityDescription, ...] = (*FAN_DESCRIPTIONS,)
+    from ..data import ClimateProxyConfigEntry
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ClimateProxyConfigEntry,
+    config_entry: ClimateProxyConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the fan platform."""
-    async_add_entities(
-        ClimateProxyFan(
-            coordinator=entry.runtime_data.coordinator,
-            entity_description=entity_description,
-        )
-        for entity_description in ENTITY_DESCRIPTIONS
-    )
+    """Set up the fan proxy platform from a config entry."""
+    discovered = config_entry.runtime_data.discovered_entities.get(Platform.FAN, [])
+    device_info = DeviceInfo(identifiers={(DOMAIN, config_entry.entry_id)})
+    state_manager = config_entry.runtime_data.state_manager
+
+    entities: list[ClimateProxyFanEntity] = []
+    for entry in discovered:
+        entity = ClimateProxyFanEntity(config_entry, entry, state_manager, device_info)
+        state_manager.fan_proxy_entities[entry.entity_id] = entity
+        entities.append(entity)
+
+    async_add_entities(entities)

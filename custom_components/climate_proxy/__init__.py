@@ -1,80 +1,45 @@
 """
-Custom integration to integrate climate_proxy with Home Assistant.
+Climate Proxy — Home Assistant custom integration.
 
-This integration demonstrates best practices for:
-- Config flow setup (user, reconfigure, reauth)
-- DataUpdateCoordinator pattern for efficient data fetching
-- Multiple platform types (sensor, binary_sensor, switch, select, number)
-- Service registration and handling
-- Device and entity management
-- Proper error handling and recovery
+Creates a virtual climate device that wraps a real physical thermostat.
+All sensors are proxied without alteration; all controls are intercepted
+and enforced so that the real device always matches the user's settings.
 
-For more details about this integration, please refer to:
-https://github.com/Rjvs/climate-proxy
-
-For integration development guidelines:
-https://developers.home-assistant.io/docs/creating_integration_manifest
+IoT class: local_push (event-driven, no external API).
 """
 
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.const import Platform
 import homeassistant.helpers.config_validation as cv
 from homeassistant.loader import async_get_loaded_integration
 
-from .api import ClimateProxyApiClient
-from .const import DOMAIN, LOGGER
-from .coordinator import ClimateProxyDataUpdateCoordinator
+from .const import CONF_CLIMATE_ENTITY_ID, DOMAIN, LOGGER
 from .data import ClimateProxyData
-from .service_actions import async_setup_services
+from .state_manager import ClimateProxyStateManager
+from .state_manager.entity_discovery import discover_underlying_entities
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
     from .data import ClimateProxyConfigEntry
 
-PLATFORMS: list[Platform] = [
+# All possible proxy platforms; active set is determined per-entry at setup time
+_ALL_PLATFORMS: list[Platform] = [
+    Platform.CLIMATE,
+    Platform.SENSOR,
     Platform.BINARY_SENSOR,
+    Platform.SWITCH,
+    Platform.SELECT,
+    Platform.NUMBER,
     Platform.BUTTON,
     Platform.FAN,
-    Platform.NUMBER,
-    Platform.SELECT,
-    Platform.SENSOR,
-    Platform.SWITCH,
 ]
 
-# This integration is configured via config entries only
+# Integration is configured via config entries only — no YAML
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-
-
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """
-    Set up the integration.
-
-    This is called once at Home Assistant startup to register service actions.
-    Service actions must be registered here (not in async_setup_entry) to ensure:
-    - Service action validation works correctly
-    - Service actions are available even without config entries
-    - Helpful error messages are provided
-
-    This is a Silver Quality Scale requirement.
-
-    Args:
-        hass: The Home Assistant instance.
-        config: The Home Assistant configuration.
-
-    Returns:
-        True if setup was successful.
-
-    For more information:
-    https://developers.home-assistant.io/docs/dev_101_services
-    """
-    await async_setup_services(hass)
-    return True
 
 
 async def async_setup_entry(
@@ -82,64 +47,53 @@ async def async_setup_entry(
     entry: ClimateProxyConfigEntry,
 ) -> bool:
     """
-    Set up this integration using UI.
+    Set up climate_proxy from a config entry.
 
-    This is called when a config entry is loaded. It:
-    1. Creates the API client with credentials from the config entry
-    2. Initializes the DataUpdateCoordinator for data fetching
-    3. Performs the first data refresh
-    4. Sets up all platforms (sensors, switches, etc.)
-    5. Registers services
-    6. Sets up reload listener for config changes
-
-    Data flow in this integration:
-    1. User enters username/password in config flow (config_flow.py)
-    2. Credentials stored in entry.data[CONF_USERNAME/CONF_PASSWORD]
-    3. API Client initialized with credentials (api/client.py)
-    4. Coordinator fetches data using authenticated client (coordinator/base.py)
-    5. Entities access data via self.coordinator.data (sensor/, binary_sensor/, etc.)
-
-    This pattern ensures credentials from setup flow are used throughout
-    the integration's lifecycle for API communication.
-
-    Args:
-        hass: The Home Assistant instance.
-        entry: The config entry being set up.
-
-    Returns:
-        True if setup was successful.
-
-    For more information:
-    https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
+    Steps:
+    1. Discover all entities on the underlying device (grouped by platform).
+    2. Determine which platforms to activate.
+    3. Create StateManager and store runtime data.
+    4. Forward setup to active platforms.
+    5. Subscribe StateManager to state_changed events.
+    6. Register reload listener.
     """
-    # Initialize client first
-    client = ClimateProxyApiClient(
-        username=entry.data[CONF_USERNAME],  # From config flow setup
-        password=entry.data[CONF_PASSWORD],  # From config flow setup
-        session=async_get_clientsession(hass),
+    climate_entity_id = entry.data[CONF_CLIMATE_ENTITY_ID]
+
+    # Discover other entities on the underlying device
+    discovered_entities = discover_underlying_entities(hass, climate_entity_id)
+    LOGGER.debug(
+        "Discovered entities for %s: %s",
+        climate_entity_id,
+        {k.value: [e.entity_id for e in v] for k, v in discovered_entities.items()},
     )
 
-    # Initialize coordinator with config_entry
-    coordinator = ClimateProxyDataUpdateCoordinator(
-        hass=hass,
-        logger=LOGGER,
-        name=DOMAIN,
-        config_entry=entry,
-        update_interval=timedelta(hours=1),
-        always_update=False,  # Only update entities when data actually changes
-    )
+    # Always activate CLIMATE + SENSOR (for weighted-avg sensors)
+    active_platforms: list[Platform] = [Platform.CLIMATE, Platform.SENSOR] + [
+        p
+        for p in [
+            Platform.BINARY_SENSOR,
+            Platform.SWITCH,
+            Platform.SELECT,
+            Platform.NUMBER,
+            Platform.BUTTON,
+            Platform.FAN,
+        ]
+        if p in discovered_entities
+    ]
 
-    # Store runtime data
+    state_manager = ClimateProxyStateManager(hass, entry)
+
     entry.runtime_data = ClimateProxyData(
-        client=client,
+        state_manager=state_manager,
         integration=async_get_loaded_integration(hass, entry.domain),
-        coordinator=coordinator,
+        discovered_entities=discovered_entities,
     )
 
-    # https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-single-api-poll-for-data-for-all-entities
-    await coordinator.async_config_entry_first_refresh()
+    await hass.config_entries.async_forward_entry_setups(entry, active_platforms)
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Subscribe to events after entities are created
+    await state_manager.async_setup()
+
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     return True
@@ -149,43 +103,30 @@ async def async_unload_entry(
     hass: HomeAssistant,
     entry: ClimateProxyConfigEntry,
 ) -> bool:
-    """
-    Unload a config entry.
+    """Unload a config entry — tear down subscriptions and platform entities."""
+    await entry.runtime_data.state_manager.async_teardown()
 
-    This is called when the integration is being removed or reloaded.
-    It ensures proper cleanup of:
-    - All platform entities
-    - Registered services
-    - Update listeners
+    # Determine which platforms were activated
+    discovered = entry.runtime_data.discovered_entities
+    active_platforms: list[Platform] = [Platform.CLIMATE, Platform.SENSOR] + [
+        p
+        for p in [
+            Platform.BINARY_SENSOR,
+            Platform.SWITCH,
+            Platform.SELECT,
+            Platform.NUMBER,
+            Platform.BUTTON,
+            Platform.FAN,
+        ]
+        if p in discovered
+    ]
 
-    Args:
-        hass: The Home Assistant instance.
-        entry: The config entry being unloaded.
-
-    Returns:
-        True if unload was successful.
-
-    For more information:
-    https://developers.home-assistant.io/docs/config_entries_index/#unloading-entries
-    """
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    return await hass.config_entries.async_unload_platforms(entry, active_platforms)
 
 
 async def async_reload_entry(
     hass: HomeAssistant,
     entry: ClimateProxyConfigEntry,
 ) -> None:
-    """
-    Reload config entry.
-
-    This is called when the integration configuration or options have changed.
-    It unloads and then reloads the integration with the new configuration.
-
-    Args:
-        hass: The Home Assistant instance.
-        entry: The config entry being reloaded.
-
-    For more information:
-    https://developers.home-assistant.io/docs/config_entries_index/#reloading-entries
-    """
+    """Reload config entry when options change."""
     await hass.config_entries.async_reload(entry.entry_id)

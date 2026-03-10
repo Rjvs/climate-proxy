@@ -4,30 +4,33 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.climate_proxy.const import PARALLEL_UPDATES as PARALLEL_UPDATES
-from homeassistant.components.select import SelectEntityDescription
+from homeassistant.const import Platform
+from homeassistant.helpers.device_registry import DeviceInfo
 
-from .fan_speed import ENTITY_DESCRIPTIONS as FAN_SPEED_DESCRIPTIONS, ClimateProxyFanSpeedSelect
+from ..const import DOMAIN, PARALLEL_UPDATES as PARALLEL_UPDATES
+from .proxy_entity import ClimateProxySelectEntity
 
 if TYPE_CHECKING:
-    from custom_components.climate_proxy.data import ClimateProxyConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-# Combine all entity descriptions from different modules
-ENTITY_DESCRIPTIONS: tuple[SelectEntityDescription, ...] = (*FAN_SPEED_DESCRIPTIONS,)
+    from ..data import ClimateProxyConfigEntry
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ClimateProxyConfigEntry,
+    config_entry: ClimateProxyConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the select platform."""
-    async_add_entities(
-        ClimateProxyFanSpeedSelect(
-            coordinator=entry.runtime_data.coordinator,
-            entity_description=entity_description,
-        )
-        for entity_description in FAN_SPEED_DESCRIPTIONS
-    )
+    """Set up the select proxy platform from a config entry."""
+    discovered = config_entry.runtime_data.discovered_entities.get(Platform.SELECT, [])
+    device_info = DeviceInfo(identifiers={(DOMAIN, config_entry.entry_id)})
+    state_manager = config_entry.runtime_data.state_manager
+
+    entities: list[ClimateProxySelectEntity] = []
+    for entry in discovered:
+        entity = ClimateProxySelectEntity(config_entry, entry, state_manager, device_info)
+        state_manager.select_proxy_entities[entry.entity_id] = entity
+        entities.append(entity)
+
+    async_add_entities(entities)

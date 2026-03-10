@@ -1,114 +1,105 @@
 """
 Config flow for climate_proxy.
 
-This module implements the main configuration flow including:
-- Initial user setup
-- Reconfiguration of existing entries
-- Reauthentication flow
+5-step flow:
+    1. async_step_user          — name + climate entity selection
+    2. async_step_temp_sensors  — pick temperature sensors (optional)
+    3. async_step_temp_weights  — set weight per sensor (skipped if none selected)
+    4. async_step_humidity_sensors — pick humidity sensors (optional)
+    5. async_step_humidity_weights — set weight per sensor (skipped if none selected)
 
-For more information:
-https://developers.home-assistant.io/docs/config_entries_config_flow_handler
+Reconfigure flow (async_step_reconfigure): change underlying entity or rename.
+Options flow runs steps 2–5 with current values pre-filled.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from slugify import slugify
+from homeassistant import config_entries
 
-from custom_components.climate_proxy.config_flow_handler.schemas import (
-    get_reauth_schema,
-    get_reconfigure_schema,
+from ..const import (
+    CONF_CLIMATE_ENTITY_ID,
+    CONF_HUMIDITY_SENSORS,
+    CONF_PROXY_NAME,
+    CONF_SENSOR_ENTITY_ID,
+    CONF_SENSOR_WEIGHT,
+    CONF_TEMPERATURE_SENSORS,
+    DOMAIN,
+)
+from .schemas.config import (
+    get_humidity_sensors_schema,
+    get_humidity_weights_schema,
+    get_temperature_sensors_schema,
+    get_temperature_weights_schema,
     get_user_schema,
 )
-from custom_components.climate_proxy.config_flow_handler.validators import validate_credentials
-from custom_components.climate_proxy.const import DOMAIN, LOGGER
-from homeassistant import config_entries
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 
-if TYPE_CHECKING:
-    from custom_components.climate_proxy.config_flow_handler.options_flow import ClimateProxyOptionsFlow
 
-# Map exception types to error keys for user-facing messages
-ERROR_MAP = {
-    "ClimateProxyApiClientAuthenticationError": "auth",
-    "ClimateProxyApiClientCommunicationError": "connection",
-}
+def _build_sensor_list(entity_ids: list[str], weights: dict[str, float]) -> list[dict[str, Any]]:
+    """Convert parallel lists of entity_ids and weights dict to sensor config list."""
+    return [{CONF_SENSOR_ENTITY_ID: eid, CONF_SENSOR_WEIGHT: weights.get(eid, 1.0)} for eid in entity_ids]
+
+
+def _extract_entity_ids(sensor_list: list[dict[str, Any]]) -> list[str]:
+    """Extract entity IDs from sensor config list."""
+    return [s[CONF_SENSOR_ENTITY_ID] for s in sensor_list]
+
+
+def _extract_weights(sensor_list: list[dict[str, Any]]) -> dict[str, float]:
+    """Extract {entity_id: weight} dict from sensor config list."""
+    return {s[CONF_SENSOR_ENTITY_ID]: float(s.get(CONF_SENSOR_WEIGHT, 1.0)) for s in sensor_list}
 
 
 class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """
-    Handle a config flow for climate_proxy.
-
-    This class manages the configuration flow for the integration, including
-    initial setup, reconfiguration, and reauthentication.
-
-    Supported flows:
-    - user: Initial setup via UI
-    - reconfigure: Update existing configuration
-    - reauth: Handle expired credentials
-
-    For more details:
-    https://developers.home-assistant.io/docs/config_entries_config_flow_handler
-    """
+    """Handle the configuration flow for climate_proxy."""
 
     VERSION = 1
+
+    def __init__(self) -> None:
+        """Initialise the config flow handler."""
+        # Step 1 data
+        self._proxy_name: str = ""
+        self._climate_entity_id: str = ""
+        # Step 2–3 data
+        self._temp_sensor_ids: list[str] = []
+        self._temp_sensors: list[dict[str, Any]] = []
+        # Step 4–5 data
+        self._humidity_sensor_ids: list[str] = []
+        self._humidity_sensors: list[dict[str, Any]] = []
 
     @staticmethod
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> ClimateProxyOptionsFlow:
-        """
-        Get the options flow for this handler.
-
-        Returns:
-            The options flow instance for modifying integration options.
-
-        """
-        from custom_components.climate_proxy.config_flow_handler.options_flow import (  # noqa: PLC0415
-            ClimateProxyOptionsFlow,
-        )
-
+        """Return the options flow handler."""
         return ClimateProxyOptionsFlow()
+
+    # ------------------------------------------------------------------
+    # Step 1: Name + climate entity
+    # ------------------------------------------------------------------
 
     async def async_step_user(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
-        """
-        Handle a flow initialized by the user.
-
-        This is the entry point when a user adds the integration from the UI.
-
-        Args:
-            user_input: The user input from the config flow form, or None for initial display.
-
-        Returns:
-            The config flow result, either showing a form or creating an entry.
-
-        """
+        """Handle initial setup: name and underlying climate entity."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            try:
-                await validate_credentials(
-                    self.hass,
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
-            except Exception as exception:  # noqa: BLE001
-                errors["base"] = self._map_exception_to_error(exception)
+            climate_entity_id = user_input[CONF_CLIMATE_ENTITY_ID]
+
+            # Validate the entity exists
+            if self.hass.states.get(climate_entity_id) is None:
+                errors[CONF_CLIMATE_ENTITY_ID] = "entity_not_found"
             else:
-                # Set unique ID based on username
-                # NOTE: This is just an example - use a proper unique ID in production
-                # See: https://developers.home-assistant.io/docs/config_entries_config_flow_handler#unique-ids
-                await self.async_set_unique_id(slugify(user_input[CONF_USERNAME]))
+                # Prevent two proxies for the same underlying device
+                await self.async_set_unique_id(climate_entity_id)
                 self._abort_if_unique_id_configured()
 
-                return self.async_create_entry(
-                    title=user_input[CONF_USERNAME],
-                    data=user_input,
-                )
+                self._proxy_name = user_input[CONF_PROXY_NAME]
+                self._climate_entity_id = climate_entity_id
+                return await self.async_step_temp_sensors()
 
         return self.async_show_form(
             step_id="user",
@@ -116,123 +107,240 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    # ------------------------------------------------------------------
+    # Reconfigure: change underlying climate entity or rename
+    # ------------------------------------------------------------------
+
     async def async_step_reconfigure(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
-        """
-        Handle reconfiguration of the integration.
-
-        Allows users to update their credentials without removing and re-adding
-        the integration.
-
-        Args:
-            user_input: The user input from the reconfigure form, or None for initial display.
-
-        Returns:
-            The config flow result, either showing a form or updating the entry.
-
-        """
-        entry = self._get_reconfigure_entry()
+        """Allow the user to change the underlying climate entity or rename the proxy."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            try:
-                await validate_credentials(
-                    self.hass,
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
-            except Exception as exception:  # noqa: BLE001
-                errors["base"] = self._map_exception_to_error(exception)
+            climate_entity_id = user_input[CONF_CLIMATE_ENTITY_ID]
+            if self.hass.states.get(climate_entity_id) is None:
+                errors[CONF_CLIMATE_ENTITY_ID] = "entity_not_found"
             else:
                 return self.async_update_reload_and_abort(
-                    entry,
-                    data=user_input,
+                    self._get_reconfigure_entry(),
+                    title=user_input[CONF_PROXY_NAME],
+                    data_updates={
+                        CONF_PROXY_NAME: user_input[CONF_PROXY_NAME],
+                        CONF_CLIMATE_ENTITY_ID: climate_entity_id,
+                    },
                 )
 
+        entry = self._get_reconfigure_entry()
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=get_reconfigure_schema(entry.data.get(CONF_USERNAME, "")),
+            data_schema=get_user_schema(
+                {
+                    CONF_PROXY_NAME: entry.data.get(CONF_PROXY_NAME, ""),
+                    CONF_CLIMATE_ENTITY_ID: entry.data.get(CONF_CLIMATE_ENTITY_ID, ""),
+                }
+            ),
             errors=errors,
         )
 
-    async def async_step_reauth(
-        self,
-        entry_data: dict[str, Any] | None = None,
-    ) -> config_entries.ConfigFlowResult:
-        """
-        Handle reauthentication when credentials are invalid.
+    # ------------------------------------------------------------------
+    # Step 2: Temperature sensor selection
+    # ------------------------------------------------------------------
 
-        This flow is automatically triggered when the coordinator catches
-        an authentication error (ConfigEntryAuthFailed).
-
-        Args:
-            entry_data: The existing entry data (unused, per convention).
-
-        Returns:
-            The result of the reauth_confirm step.
-
-        """
-        return await self.async_step_reauth_confirm()
-
-    async def async_step_reauth_confirm(
+    async def async_step_temp_sensors(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
-        """
-        Handle reauthentication confirmation.
-
-        Shows the reauthentication form and processes updated credentials.
-
-        Args:
-            user_input: The user input with updated credentials, or None for initial display.
-
-        Returns:
-            The config flow result, either showing a form or updating the entry.
-
-        """
-        entry = self._get_reauth_entry()
-        errors: dict[str, str] = {}
-
+        """Handle temperature sensor selection."""
         if user_input is not None:
-            try:
-                await validate_credentials(
-                    self.hass,
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
-            except Exception as exception:  # noqa: BLE001
-                errors["base"] = self._map_exception_to_error(exception)
-            else:
-                return self.async_update_reload_and_abort(
-                    entry,
-                    data={**entry.data, **user_input},
-                )
+            self._temp_sensor_ids = user_input.get("temperature_sensor_ids", [])
+            if self._temp_sensor_ids:
+                return await self.async_step_temp_weights()
+            self._temp_sensors = []
+            return await self.async_step_humidity_sensors()
 
         return self.async_show_form(
-            step_id="reauth_confirm",
-            data_schema=get_reauth_schema(entry.data.get(CONF_USERNAME, "")),
-            errors=errors,
-            description_placeholders={
-                "username": entry.data.get(CONF_USERNAME, ""),
+            step_id="temp_sensors",
+            data_schema=get_temperature_sensors_schema(self._temp_sensor_ids),
+        )
+
+    # ------------------------------------------------------------------
+    # Step 3: Temperature sensor weights
+    # ------------------------------------------------------------------
+
+    async def async_step_temp_weights(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Handle weight assignment for temperature sensors."""
+        if user_input is not None:
+            self._temp_sensors = _build_sensor_list(self._temp_sensor_ids, {k: float(v) for k, v in user_input.items()})
+            return await self.async_step_humidity_sensors()
+
+        return self.async_show_form(
+            step_id="temp_weights",
+            data_schema=get_temperature_weights_schema(self._temp_sensor_ids),
+        )
+
+    # ------------------------------------------------------------------
+    # Step 4: Humidity sensor selection
+    # ------------------------------------------------------------------
+
+    async def async_step_humidity_sensors(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Handle humidity sensor selection."""
+        if user_input is not None:
+            self._humidity_sensor_ids = user_input.get("humidity_sensor_ids", [])
+            if self._humidity_sensor_ids:
+                return await self.async_step_humidity_weights()
+            self._humidity_sensors = []
+            return self._create_entry()
+
+        return self.async_show_form(
+            step_id="humidity_sensors",
+            data_schema=get_humidity_sensors_schema(self._humidity_sensor_ids),
+        )
+
+    # ------------------------------------------------------------------
+    # Step 5: Humidity sensor weights
+    # ------------------------------------------------------------------
+
+    async def async_step_humidity_weights(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Handle weight assignment for humidity sensors."""
+        if user_input is not None:
+            self._humidity_sensors = _build_sensor_list(
+                self._humidity_sensor_ids, {k: float(v) for k, v in user_input.items()}
+            )
+            return self._create_entry()
+
+        return self.async_show_form(
+            step_id="humidity_weights",
+            data_schema=get_humidity_weights_schema(self._humidity_sensor_ids),
+        )
+
+    # ------------------------------------------------------------------
+    # Final: create config entry
+    # ------------------------------------------------------------------
+
+    def _create_entry(self) -> config_entries.ConfigFlowResult:
+        return self.async_create_entry(
+            title=self._proxy_name,
+            data={
+                CONF_PROXY_NAME: self._proxy_name,
+                CONF_CLIMATE_ENTITY_ID: self._climate_entity_id,
+            },
+            options={
+                CONF_TEMPERATURE_SENSORS: self._temp_sensors,
+                CONF_HUMIDITY_SENSORS: self._humidity_sensors,
             },
         )
 
-    def _map_exception_to_error(self, exception: Exception) -> str:
-        """
-        Map API exceptions to user-facing error keys.
 
-        Args:
-            exception: The exception that was raised.
+class ClimateProxyOptionsFlow(config_entries.OptionsFlow):
+    """Handle options flow — reconfigure sensors and weights after initial setup."""
 
-        Returns:
-            The error key for display in the config flow form.
+    def __init__(self) -> None:
+        """Initialise the options flow handler."""
+        self._temp_sensor_ids: list[str] = []
+        self._temp_sensors: list[dict[str, Any]] = []
+        self._humidity_sensor_ids: list[str] = []
+        self._humidity_sensors: list[dict[str, Any]] = []
 
-        """
-        LOGGER.warning("Error in config flow: %s", exception)
-        exception_name = type(exception).__name__
-        return ERROR_MAP.get(exception_name, "unknown")
+    async def async_step_init(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Entry point — jump to temperature sensor selection."""
+        # Pre-load current values
+        current_temp = self.config_entry.options.get(CONF_TEMPERATURE_SENSORS, [])
+        self._temp_sensor_ids = _extract_entity_ids(current_temp)
+        current_humidity = self.config_entry.options.get(CONF_HUMIDITY_SENSORS, [])
+        self._humidity_sensor_ids = _extract_entity_ids(current_humidity)
+        return await self.async_step_temp_sensors()
+
+    async def async_step_temp_sensors(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Select temperature sensors."""
+        if user_input is not None:
+            self._temp_sensor_ids = user_input.get("temperature_sensor_ids", [])
+            if self._temp_sensor_ids:
+                return await self.async_step_temp_weights()
+            self._temp_sensors = []
+            return await self.async_step_humidity_sensors()
+
+        return self.async_show_form(
+            step_id="temp_sensors",
+            data_schema=get_temperature_sensors_schema(self._temp_sensor_ids),
+        )
+
+    async def async_step_temp_weights(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Set weights for temperature sensors."""
+        current = self.config_entry.options.get(CONF_TEMPERATURE_SENSORS, [])
+        current_weights = _extract_weights(current)
+
+        if user_input is not None:
+            self._temp_sensors = _build_sensor_list(self._temp_sensor_ids, {k: float(v) for k, v in user_input.items()})
+            return await self.async_step_humidity_sensors()
+
+        return self.async_show_form(
+            step_id="temp_weights",
+            data_schema=get_temperature_weights_schema(self._temp_sensor_ids, current_weights),
+        )
+
+    async def async_step_humidity_sensors(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Select humidity sensors."""
+        if user_input is not None:
+            self._humidity_sensor_ids = user_input.get("humidity_sensor_ids", [])
+            if self._humidity_sensor_ids:
+                return await self.async_step_humidity_weights()
+            self._humidity_sensors = []
+            return self._create_options_entry()
+
+        return self.async_show_form(
+            step_id="humidity_sensors",
+            data_schema=get_humidity_sensors_schema(self._humidity_sensor_ids),
+        )
+
+    async def async_step_humidity_weights(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Set weights for humidity sensors."""
+        current = self.config_entry.options.get(CONF_HUMIDITY_SENSORS, [])
+        current_weights = _extract_weights(current)
+
+        if user_input is not None:
+            self._humidity_sensors = _build_sensor_list(
+                self._humidity_sensor_ids, {k: float(v) for k, v in user_input.items()}
+            )
+            return self._create_options_entry()
+
+        return self.async_show_form(
+            step_id="humidity_weights",
+            data_schema=get_humidity_weights_schema(self._humidity_sensor_ids, current_weights),
+        )
+
+    def _create_options_entry(self) -> config_entries.ConfigFlowResult:
+        return self.async_create_entry(
+            data={
+                CONF_TEMPERATURE_SENSORS: self._temp_sensors,
+                CONF_HUMIDITY_SENSORS: self._humidity_sensors,
+            }
+        )
 
 
-__all__ = ["ClimateProxyConfigFlowHandler"]
+__all__ = ["ClimateProxyConfigFlowHandler", "ClimateProxyOptionsFlow"]
