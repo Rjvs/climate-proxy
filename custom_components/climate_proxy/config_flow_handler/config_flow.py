@@ -34,6 +34,7 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for climate_proxy."""
 
     VERSION = 1
+    MINOR_VERSION = 1
 
     def __init__(self) -> None:
         # Step 1 data

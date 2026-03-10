@@ -81,15 +81,29 @@ class ClimateProxySwitchEntity(SwitchEntity, RestoreEntity):
         """Restore desired state and subscribe to underlying entity changes."""
         await super().async_added_to_hass()
 
+        has_restored_data = False
         last_extra = await self.async_get_last_extra_data()
         if last_extra is not None:
             restored = last_extra.as_dict()
             self._desired_is_on = bool(restored.get(RESTORE_KEY_IS_ON, False))
+            has_restored_data = True
             LOGGER.debug(
                 "Restored switch desired state for %s: is_on=%s",
                 self._underlying_entity_id,
                 self._desired_is_on,
             )
+
+        # On first install (no restore data), seed desired state from current underlying state
+        # so enforcement does not immediately flip a device that the user never changed.
+        if not has_restored_data:
+            underlying = self.hass.states.get(self._underlying_entity_id)
+            if underlying is not None and underlying.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+                self._desired_is_on = underlying.state == "on"
+                LOGGER.debug(
+                    "Seeded switch desired state from underlying for %s: is_on=%s",
+                    self._underlying_entity_id,
+                    self._desired_is_on,
+                )
 
         self._unsub_state_change = async_track_state_change_event(
             self.hass,

@@ -272,6 +272,30 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         return True
 
     # ------------------------------------------------------------------
+    # Public diagnostic properties (used by diagnostics.py)
+    # ------------------------------------------------------------------
+
+    @property
+    def underlying_entity_id(self) -> str:
+        """Return the entity ID of the underlying climate entity."""
+        return self._underlying_entity_id
+
+    @property
+    def desired_hvac_mode(self) -> HVACMode:
+        """Return the desired (enforced) HVAC mode."""
+        return self._desired_hvac_mode
+
+    @property
+    def desired_target_temperature(self) -> float | None:
+        """Return the desired target temperature."""
+        return self._desired_target_temperature
+
+    @property
+    def current_offset(self) -> float:
+        """Return the current setpoint offset applied when external sensors are in use."""
+        return self._current_offset
+
+    # ------------------------------------------------------------------
     # ClimateEntity commands (MitM: store desired → push to device)
     # ------------------------------------------------------------------
 
@@ -292,10 +316,18 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
 
         if temp is not None:
             self._desired_target_temperature = float(temp)
-        if low is not None:
-            self._desired_target_temperature_low = float(low)
-        if high is not None:
-            self._desired_target_temperature_high = float(high)
+            # Clear range setpoints — single-temp and range are mutually exclusive modes.
+            # Leaving stale low/high would cause _get_effective_setpoints to silently use
+            # the wrong value after an HVAC mode change (e.g. HEAT_COOL → HEAT).
+            self._desired_target_temperature_low = None
+            self._desired_target_temperature_high = None
+        if low is not None or high is not None:
+            if low is not None:
+                self._desired_target_temperature_low = float(low)
+            if high is not None:
+                self._desired_target_temperature_high = float(high)
+            # Clear single setpoint — range mode takes over.
+            self._desired_target_temperature = None
         if hvac is not None:
             try:
                 mode = HVACMode(hvac)

@@ -104,6 +104,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         """Restore desired state, mirror capabilities, and subscribe to underlying entity changes."""
         await super().async_added_to_hass()
 
+        has_restored_data = False
         last_extra = await self.async_get_last_extra_data()
         if last_extra is not None:
             restored = last_extra.as_dict()
@@ -111,6 +112,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
             raw_pct = restored.get(RESTORE_KEY_PERCENTAGE)
             self._desired_percentage = int(raw_pct) if raw_pct is not None else None
             self._desired_preset_mode = restored.get(RESTORE_KEY_PRESET_MODE)
+            has_restored_data = True
             LOGGER.debug(
                 "Restored fan desired state for %s: is_on=%s, percentage=%s, preset_mode=%s",
                 self._underlying_entity_id,
@@ -119,10 +121,24 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
                 self._desired_preset_mode,
             )
 
-        # Initialize capabilities and default state from current underlying state
+        # Initialize capabilities and default state from current underlying state.
+        # When no restore data exists (fresh install), seed desired state from the underlying so
+        # enforcement does not immediately flip a device the user never changed.
         underlying = self.hass.states.get(self._underlying_entity_id)
         if underlying is not None:
             self._mirror_capabilities(underlying)
+            if not has_restored_data and underlying.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+                self._desired_is_on = underlying.state == "on"
+                raw_pct = underlying.attributes.get("percentage")
+                self._desired_percentage = int(raw_pct) if raw_pct is not None else None
+                self._desired_preset_mode = underlying.attributes.get("preset_mode")
+                LOGGER.debug(
+                    "Seeded fan desired state from underlying for %s: is_on=%s, percentage=%s, preset_mode=%s",
+                    self._underlying_entity_id,
+                    self._desired_is_on,
+                    self._desired_percentage,
+                    self._desired_preset_mode,
+                )
 
         self._unsub_state_change = async_track_state_change_event(
             self.hass,
@@ -195,13 +211,13 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         if preset_mode is not None:
             service_kwargs["preset_mode"] = preset_mode
 
-        await self._push_or_queue("fan", "turn_on", service_kwargs)
+        await self._push_or_queue("turn_on", service_kwargs)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off: update desired state, write to HA, push to underlying entity."""
         self._desired_is_on = False
         self.async_write_ha_state()
-        await self._push_or_queue("fan", "turn_off", {})
+        await self._push_or_queue("turn_off", {})
 
     async def async_set_percentage(self, percentage: int) -> None:
         """Set speed percentage: update desired state, write to HA, push to underlying entity."""
@@ -209,14 +225,14 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         if percentage > 0:
             self._desired_is_on = True
         self.async_write_ha_state()
-        await self._push_or_queue("fan", "set_percentage", {"percentage": percentage})
+        await self._push_or_queue("set_percentage", {"percentage": percentage})
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set preset mode: update desired state, write to HA, push to underlying entity."""
         self._desired_preset_mode = preset_mode
         self._desired_is_on = True
         self.async_write_ha_state()
-        await self._push_or_queue("fan", "set_preset_mode", {"preset_mode": preset_mode})
+        await self._push_or_queue("set_preset_mode", {"preset_mode": preset_mode})
 
     # ------------------------------------------------------------------
     # Correction interface (called by StateManager)
@@ -285,6 +301,23 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
             features |= FanEntityFeature.SET_SPEED
         if preset_modes:
             features |= FanEntityFeature.PRESET_MODE
+
+        # Detect TURN_ON / TURN_OFF (added in HA 2024.2).
+        # Check the underlying entity's supported_features bitmask; fall back to checking
+        # whether the entity has on/off state (all real fan entities do).
+        underlying_features = attrs.get("supported_features", 0)
+        try:
+            underlying_features = int(underlying_features)
+        except ValueError, TypeError:
+            underlying_features = 0
+        if underlying_features & FanEntityFeature.TURN_ON:
+            features |= FanEntityFeature.TURN_ON
+        if underlying_features & FanEntityFeature.TURN_OFF:
+            features |= FanEntityFeature.TURN_OFF
+        # If the underlying didn't advertise them but is a real fan (has on/off), add them anyway.
+        if not (features & FanEntityFeature.TURN_ON) and state.state in ("on", "off"):
+            features |= FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
+
         self._attr_supported_features = features
 
     @callback
@@ -300,7 +333,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
             name=f"climate_proxy:fan_enforce:{self._underlying_entity_id}",
         )
 
-    async def _push_or_queue(self, domain: str, service: str, kwargs: dict[str, Any]) -> None:
+    async def _push_or_queue(self, service: str, kwargs: dict[str, Any]) -> None:
         """Push a fan service call to the underlying entity, or queue if unavailable."""
         underlying = self.hass.states.get(self._underlying_entity_id)
         if underlying is not None and underlying.state not in (
@@ -308,7 +341,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
             STATE_UNKNOWN,
         ):
             await self.hass.services.async_call(
-                domain,
+                "fan",
                 service,
                 kwargs,
                 blocking=False,
@@ -316,8 +349,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
             )
         else:
             LOGGER.debug(
-                "Dropped fan command %s.%s for %s (unavailable); will enforce on reconnect",
-                domain,
+                "Dropped fan command %s for %s (unavailable); will enforce on reconnect",
                 service,
                 self._underlying_entity_id,
             )

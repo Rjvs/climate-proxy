@@ -222,3 +222,93 @@ class TestClimateProxyFanEntity:
         target = call_args[1].get("target")
         assert target is not None
         assert target["entity_id"] == "fan.test_fan"
+
+    # ------------------------------------------------------------------
+    # B2: Initialization from underlying state (no restore data)
+    # ------------------------------------------------------------------
+
+    async def test_seeds_desired_on_from_underlying_when_no_restore_data(self) -> None:
+        """On first install, desired state seeds from underlying ON state."""
+        entity = _make_entity()
+        entity.hass = MagicMock()
+        entity.hass.states.get = MagicMock(
+            return_value=State("fan.test_fan", "on", {"percentage": 60, "preset_mode": "auto"})
+        )
+        entity.async_write_ha_state = MagicMock()
+
+        async def _no_restore():
+            return None
+
+        entity.async_get_last_extra_data = _no_restore
+
+        await entity.async_added_to_hass()
+
+        assert entity._desired_is_on is True
+        assert entity._desired_percentage == 60
+        assert entity._desired_preset_mode == "auto"
+
+    async def test_seeds_desired_off_from_underlying_when_no_restore_data(self) -> None:
+        """On first install with underlying off, desired state is off."""
+        entity = _make_entity()
+        entity.hass = MagicMock()
+        entity.hass.states.get = MagicMock(return_value=State("fan.test_fan", "off"))
+        entity.async_write_ha_state = MagicMock()
+
+        async def _no_restore():
+            return None
+
+        entity.async_get_last_extra_data = _no_restore
+
+        await entity.async_added_to_hass()
+
+        assert entity._desired_is_on is False
+
+    async def test_keeps_restored_value_not_underlying(self) -> None:
+        """When restore data exists, it takes priority over underlying state."""
+        entity = _make_entity()
+        entity.hass = MagicMock()
+        # Underlying is OFF but restore says ON
+        entity.hass.states.get = MagicMock(return_value=State("fan.test_fan", "off"))
+        entity.async_write_ha_state = MagicMock()
+
+        restore_data = ClimateProxyFanRestoreData(is_on=True, percentage=80, preset_mode="high")
+
+        async def _with_restore():
+            return restore_data
+
+        entity.async_get_last_extra_data = _with_restore
+
+        await entity.async_added_to_hass()
+
+        assert entity._desired_is_on is True
+        assert entity._desired_percentage == 80
+        assert entity._desired_preset_mode == "high"
+
+    # ------------------------------------------------------------------
+    # M2: FanEntityFeature.TURN_ON / TURN_OFF detection
+    # ------------------------------------------------------------------
+
+    def test_mirror_capabilities_sets_turn_on_turn_off_from_underlying_features(self) -> None:
+        """TURN_ON and TURN_OFF are mirrored from underlying supported_features bitmask."""
+        from homeassistant.components.fan import FanEntityFeature
+
+        entity = _make_entity()
+        flags = int(FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF | FanEntityFeature.SET_SPEED)
+        state = State("fan.test_fan", "on", {"supported_features": flags, "percentage": 50})
+        entity._mirror_capabilities(state)
+
+        assert entity._attr_supported_features & FanEntityFeature.TURN_ON
+        assert entity._attr_supported_features & FanEntityFeature.TURN_OFF
+        assert entity._attr_supported_features & FanEntityFeature.SET_SPEED
+
+    def test_mirror_capabilities_infers_turn_on_turn_off_for_real_fans(self) -> None:
+        """If underlying doesn't advertise TURN_ON/OFF but has on/off state, flags are set."""
+        from homeassistant.components.fan import FanEntityFeature
+
+        entity = _make_entity()
+        # No supported_features in attributes, but state is "on" — a real fan
+        state = State("fan.test_fan", "on", {"percentage": 50})
+        entity._mirror_capabilities(state)
+
+        assert entity._attr_supported_features & FanEntityFeature.TURN_ON
+        assert entity._attr_supported_features & FanEntityFeature.TURN_OFF

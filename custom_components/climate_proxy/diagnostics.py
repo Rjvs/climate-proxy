@@ -58,10 +58,10 @@ async def async_get_config_entry_diagnostics(
     climate_info: dict[str, Any] = {}
     if climate_proxy is not None:
         climate_info = {
-            "underlying_entity_id": climate_proxy._underlying_entity_id,  # noqa: SLF001
-            "desired_hvac_mode": str(climate_proxy._desired_hvac_mode),  # noqa: SLF001
-            "desired_target_temperature": climate_proxy._desired_target_temperature,  # noqa: SLF001
-            "current_offset": climate_proxy._current_offset,  # noqa: SLF001
+            "underlying_entity_id": climate_proxy.underlying_entity_id,
+            "desired_hvac_mode": str(climate_proxy.desired_hvac_mode),
+            "desired_target_temperature": climate_proxy.desired_target_temperature,
+            "current_offset": climate_proxy.current_offset,
             "underlying_was_unavailable": climate_proxy.underlying_was_unavailable,
         }
 
@@ -105,5 +105,5 @@ async def async_get_config_entry_diagnostics(
         "climate_proxy": climate_info,
         "discovered_entities": discovered_summary,
         "pending_state": pending_state,
-        "debounce_active": state_manager._correcting,  # noqa: SLF001
+        "debounce_active": state_manager.debounce_active,
     }

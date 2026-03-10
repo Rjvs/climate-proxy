@@ -172,3 +172,66 @@ class TestClimateProxySwitchEntity:
         target = call_args[1].get("target")
         assert target is not None
         assert target["entity_id"] == "switch.test_switch"
+
+    # ------------------------------------------------------------------
+    # B1: Initialization from underlying state (no restore data)
+    # ------------------------------------------------------------------
+
+    async def test_seeds_desired_on_from_underlying_when_no_restore_data(self) -> None:
+        """On first install, desired state seeds from underlying ON state, not hardcoded False."""
+
+        entity = _make_entity()
+        entity.hass = MagicMock()
+        # Underlying switch is currently on
+        entity.hass.states.get = MagicMock(return_value=State("switch.test_switch", "on"))
+        entity.async_write_ha_state = MagicMock()
+
+        # Simulate no restore data available
+        async def _no_restore():
+            return None
+
+        entity.async_get_last_extra_data = _no_restore
+
+        await entity.async_added_to_hass()
+
+        assert entity._desired_is_on is True, (
+            "Expected desired state to be True (seeded from underlying ON), got False — "
+            "enforcement would have incorrectly turned the device off."
+        )
+
+    async def test_seeds_desired_off_from_underlying_when_no_restore_data(self) -> None:
+        """On first install, desired state seeds from underlying OFF state."""
+        entity = _make_entity()
+        entity.hass = MagicMock()
+        entity.hass.states.get = MagicMock(return_value=State("switch.test_switch", "off"))
+        entity.async_write_ha_state = MagicMock()
+
+        async def _no_restore():
+            return None
+
+        entity.async_get_last_extra_data = _no_restore
+
+        await entity.async_added_to_hass()
+
+        assert entity._desired_is_on is False
+
+    async def test_keeps_restored_value_not_underlying(self) -> None:
+        """When restore data exists, it takes priority over underlying state."""
+        from custom_components.climate_proxy.switch.proxy_entity import ClimateProxySwitchRestoreData
+
+        entity = _make_entity()
+        entity.hass = MagicMock()
+        # Underlying is OFF but restore says ON
+        entity.hass.states.get = MagicMock(return_value=State("switch.test_switch", "off"))
+        entity.async_write_ha_state = MagicMock()
+
+        restore_data = ClimateProxySwitchRestoreData(is_on=True)
+
+        async def _with_restore():
+            return restore_data
+
+        entity.async_get_last_extra_data = _with_restore
+
+        await entity.async_added_to_hass()
+
+        assert entity._desired_is_on is True

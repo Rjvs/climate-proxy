@@ -324,3 +324,89 @@ class TestUpdateCapabilities:
         )
         entity._update_capabilities(state)
         assert entity._attr_supported_features & ClimateEntityFeature.TARGET_HUMIDITY
+
+
+@pytest.mark.unit
+class TestSetTemperatureSetpointExclusivity:
+    """B3: set_temperature must clear the mutually-exclusive setpoint type."""
+
+    async def test_set_single_temperature_clears_range_setpoints(self) -> None:
+        """After setting a range, switching to single-temp must null out low/high."""
+        entity = _make_entity()
+        # First: set a range setpoint
+        entity._desired_target_temperature_low = 18.0
+        entity._desired_target_temperature_high = 24.0
+
+        # Now switch to single-setpoint mode
+        await entity.async_set_temperature(temperature=21.0)
+
+        assert entity._desired_target_temperature == 21.0
+        assert entity._desired_target_temperature_low is None, (
+            "low should be cleared when a single temperature is set"
+        )
+        assert entity._desired_target_temperature_high is None, (
+            "high should be cleared when a single temperature is set"
+        )
+
+    async def test_set_range_setpoints_clears_single_temperature(self) -> None:
+        """After setting a single temp, switching to range must null out temperature."""
+        entity = _make_entity()
+        # First: set a single-setpoint
+        entity._desired_target_temperature = 21.0
+
+        # Now switch to range mode
+        await entity.async_set_temperature(target_temp_low=18.0, target_temp_high=24.0)
+
+        assert entity._desired_target_temperature is None, (
+            "single temperature should be cleared when a range is set"
+        )
+        assert entity._desired_target_temperature_low == 18.0
+        assert entity._desired_target_temperature_high == 24.0
+
+    async def test_set_partial_range_still_clears_single_temperature(self) -> None:
+        """Setting only target_temp_low still clears single temperature."""
+        entity = _make_entity()
+        entity._desired_target_temperature = 21.0
+
+        await entity.async_set_temperature(target_temp_low=18.0)
+
+        assert entity._desired_target_temperature is None
+        assert entity._desired_target_temperature_low == 18.0
+
+    async def test_set_temperature_with_hvac_mode_in_range_mode(self) -> None:
+        """set_temperature with both hvac_mode and range args sets both correctly."""
+        entity = _make_entity()
+        entity._desired_target_temperature = 22.0  # old single setpoint
+
+        await entity.async_set_temperature(
+            target_temp_low=19.0,
+            target_temp_high=25.0,
+            hvac_mode=HVACMode.HEAT_COOL,
+        )
+
+        assert entity._desired_hvac_mode == HVACMode.HEAT_COOL
+        assert entity._desired_target_temperature is None
+        assert entity._desired_target_temperature_low == 19.0
+        assert entity._desired_target_temperature_high == 25.0
+
+    async def test_enforcement_uses_single_temp_not_stale_range(self) -> None:
+        """After switching to single-temp, get_climate_corrections uses temp not stale range."""
+        from homeassistant.const import ATTR_TEMPERATURE
+
+        entity = _make_entity()
+        entity._desired_hvac_mode = HVACMode.HEAT
+        # Stale range from a previous HEAT_COOL session
+        entity._desired_target_temperature_low = 18.0
+        entity._desired_target_temperature_high = 24.0
+        entity._config_entry.options = {}
+
+        # Switch to HEAT with single setpoint
+        await entity.async_set_temperature(temperature=21.0)
+
+        underlying = State("climate.thermostat", "heat", {"temperature": 19.0})
+        entity.hass.states.get = MagicMock(return_value=underlying)
+        corrections = entity.get_climate_corrections(underlying)
+
+        assert "set_temperature" in corrections
+        assert ATTR_TEMPERATURE in corrections["set_temperature"]
+        assert corrections["set_temperature"][ATTR_TEMPERATURE] == 21.0

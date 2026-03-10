@@ -54,6 +54,11 @@ class ClimateProxyStateManager:
         self._correcting = False
         self._debounce_task: asyncio.Task | None = None
 
+    @property
+    def debounce_active(self) -> bool:
+        """Return True while a correction push is in progress (debounce window open)."""
+        return self._correcting
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
