@@ -308,7 +308,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         underlying_features = attrs.get("supported_features", 0)
         try:
             underlying_features = int(underlying_features)
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             underlying_features = 0
         if underlying_features & FanEntityFeature.TURN_ON:
             features |= FanEntityFeature.TURN_ON
