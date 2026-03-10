@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from homeassistant.components.climate import ClimateEntityFeature, HVACMode
-from homeassistant.core import State
 
 from custom_components.climate_proxy.climate.capabilities import (
     detect_supported_features,
@@ -15,6 +13,8 @@ from custom_components.climate_proxy.climate.capabilities import (
     extract_swing_modes,
     extract_temp_step,
 )
+from homeassistant.components.climate import ClimateEntityFeature, HVACMode
+from homeassistant.core import State
 
 
 def _state(attrs: dict) -> State:
@@ -23,17 +23,18 @@ def _state(attrs: dict) -> State:
 
 @pytest.mark.unit
 class TestDetectSupportedFeatures:
-
     def test_full_featured_device(self) -> None:
-        state = _state({
-            "hvac_modes": [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL],
-            "temperature": 21.0,
-            "fan_modes": ["auto", "low"],
-            "preset_modes": ["eco", "comfort"],
-            "swing_modes": ["on", "off"],
-            "target_humidity": 50,
-            "aux_heat": False,
-        })
+        state = _state(
+            {
+                "hvac_modes": [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL],
+                "temperature": 21.0,
+                "fan_modes": ["auto", "low"],
+                "preset_modes": ["eco", "comfort"],
+                "swing_modes": ["on", "off"],
+                "target_humidity": 50,
+                "aux_heat": False,
+            }
+        )
         features = detect_supported_features(state)
         assert features & ClimateEntityFeature.TURN_ON
         assert features & ClimateEntityFeature.TURN_OFF
@@ -51,11 +52,13 @@ class TestDetectSupportedFeatures:
         assert features & ClimateEntityFeature.TURN_OFF
 
     def test_range_temperature(self) -> None:
-        state = _state({
-            "hvac_modes": [HVACMode.HEAT_COOL],
-            "target_temp_low": 18.0,
-            "target_temp_high": 24.0,
-        })
+        state = _state(
+            {
+                "hvac_modes": [HVACMode.HEAT_COOL],
+                "target_temp_low": 18.0,
+                "target_temp_high": 24.0,
+            }
+        )
         features = detect_supported_features(state)
         assert features & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 
@@ -67,7 +70,6 @@ class TestDetectSupportedFeatures:
 
 @pytest.mark.unit
 class TestExtractors:
-
     def test_extract_hvac_modes(self) -> None:
         state = _state({"hvac_modes": ["off", "heat", "cool", "invalid_mode"]})
         modes = extract_hvac_modes(state)

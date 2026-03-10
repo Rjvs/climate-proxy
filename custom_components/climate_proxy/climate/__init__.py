@@ -27,9 +27,7 @@ async def async_setup_entry(
     state_manager = config_entry.runtime_data.state_manager
     climate_entity_id = config_entry.data["climate_entity_id"]
 
-    manufacturer, model, hw_version, sw_version = get_device_info_for_entity(
-        hass, climate_entity_id
-    )
+    manufacturer, model, hw_version, sw_version = get_device_info_for_entity(hass, climate_entity_id)
     underlying_device_id = get_underlying_device_id(hass, climate_entity_id)
 
     device_info = DeviceInfo(

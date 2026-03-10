@@ -8,11 +8,7 @@ import voluptuous as vol
 
 from homeassistant.helpers import selector
 
-from ...const import (
-    CONF_CLIMATE_ENTITY_ID,
-    CONF_PROXY_NAME,
-    DEFAULT_SENSOR_WEIGHT,
-)
+from ...const import CONF_CLIMATE_ENTITY_ID, CONF_PROXY_NAME, DEFAULT_SENSOR_WEIGHT
 
 
 def get_user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
@@ -23,15 +19,11 @@ def get_user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
             vol.Required(
                 CONF_PROXY_NAME,
                 default=defaults.get(CONF_PROXY_NAME, vol.UNDEFINED),
-            ): selector.TextSelector(
-                selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
-            ),
+            ): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)),
             vol.Required(
                 CONF_CLIMATE_ENTITY_ID,
                 default=defaults.get(CONF_CLIMATE_ENTITY_ID, vol.UNDEFINED),
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="climate", multiple=False)
-            ),
+            ): selector.EntitySelector(selector.EntitySelectorConfig(domain="climate", multiple=False)),
         }
     )
 
@@ -54,7 +46,9 @@ def get_temperature_sensors_schema(current: list[str] | None = None) -> vol.Sche
     )
 
 
-def get_temperature_weights_schema(entity_ids: list[str], current_weights: dict[str, float] | None = None) -> vol.Schema:
+def get_temperature_weights_schema(
+    entity_ids: list[str], current_weights: dict[str, float] | None = None
+) -> vol.Schema:
     """Dynamically build a schema with one weight input per selected temperature sensor."""
     current_weights = current_weights or {}
     schema_dict: dict[Any, Any] = {}

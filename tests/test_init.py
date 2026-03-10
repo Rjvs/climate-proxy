@@ -5,9 +5,6 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from homeassistant.components.climate import HVACMode
-from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
 
 from custom_components.climate_proxy.const import (
     CONF_CLIMATE_ENTITY_ID,
@@ -16,6 +13,9 @@ from custom_components.climate_proxy.const import (
     CONF_TEMPERATURE_SENSORS,
     DOMAIN,
 )
+from homeassistant.components.climate import HVACMode
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.core import HomeAssistant
 
 from .conftest import create_mock_climate_state
 
@@ -42,7 +42,8 @@ def _mock_entry(**kwargs):
     try:
         from pytest_homeassistant_custom_component.common import MockConfigEntry
     except ImportError:
-        from homeassistant.helpers.device_registry import DeviceInfo  # noqa: F401
+        from homeassistant.helpers.device_registry import DeviceInfo
+
         raise
 
     return MockConfigEntry(**kwargs)

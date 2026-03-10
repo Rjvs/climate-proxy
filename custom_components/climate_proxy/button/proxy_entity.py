@@ -38,6 +38,7 @@ class ClimateProxyButtonEntity(ButtonEntity):
         state_manager: ClimateProxyStateManager,
         device_info: DeviceInfo,
     ) -> None:
+        """Initialise the button proxy entity."""
         self._config_entry = config_entry
         self._underlying_entry = underlying_entry
         self._state_manager = state_manager

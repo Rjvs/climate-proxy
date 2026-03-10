@@ -15,8 +15,8 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_LOW,
     SERVICE_SET_AUX_HEAT,
     SERVICE_SET_FAN_MODE,
-    SERVICE_SET_HVAC_MODE,
     SERVICE_SET_HUMIDITY,
+    SERVICE_SET_HVAC_MODE,
     SERVICE_SET_PRESET_MODE,
     SERVICE_SET_SWING_MODE,
     SERVICE_SET_TEMPERATURE,
@@ -44,9 +44,7 @@ def get_climate_corrections(
     effective_target_low: float | None = None,
     effective_target_high: float | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """
-    Compare desired state against underlying entity's actual state and produce
-    a dict of {service_name: kwargs} corrections needed.
+    """Compare desired state against underlying entity's actual state and produce a dict of corrections.
 
     The effective_target_* parameters are the offset-adjusted setpoints to send
     to the physical device (only relevant when external sensors are in use).

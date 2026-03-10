@@ -13,8 +13,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
-from homeassistant.loader import async_get_loaded_integration
 import homeassistant.helpers.config_validation as cv
+from homeassistant.loader import async_get_loaded_integration
 
 from .const import CONF_CLIMATE_ENTITY_ID, DOMAIN, LOGGER
 from .data import ClimateProxyData
@@ -68,17 +68,18 @@ async def async_setup_entry(
     )
 
     # Always activate CLIMATE + SENSOR (for weighted-avg sensors)
-    active_platforms: list[Platform] = [Platform.CLIMATE, Platform.SENSOR]
-    for platform in [
-        Platform.BINARY_SENSOR,
-        Platform.SWITCH,
-        Platform.SELECT,
-        Platform.NUMBER,
-        Platform.BUTTON,
-        Platform.FAN,
-    ]:
-        if platform in discovered_entities:
-            active_platforms.append(platform)
+    active_platforms: list[Platform] = [Platform.CLIMATE, Platform.SENSOR] + [
+        p
+        for p in [
+            Platform.BINARY_SENSOR,
+            Platform.SWITCH,
+            Platform.SELECT,
+            Platform.NUMBER,
+            Platform.BUTTON,
+            Platform.FAN,
+        ]
+        if p in discovered_entities
+    ]
 
     state_manager = ClimateProxyStateManager(hass, entry)
 
@@ -107,17 +108,18 @@ async def async_unload_entry(
 
     # Determine which platforms were activated
     discovered = entry.runtime_data.discovered_entities
-    active_platforms: list[Platform] = [Platform.CLIMATE, Platform.SENSOR]
-    for platform in [
-        Platform.BINARY_SENSOR,
-        Platform.SWITCH,
-        Platform.SELECT,
-        Platform.NUMBER,
-        Platform.BUTTON,
-        Platform.FAN,
-    ]:
-        if platform in discovered:
-            active_platforms.append(platform)
+    active_platforms: list[Platform] = [Platform.CLIMATE, Platform.SENSOR] + [
+        p
+        for p in [
+            Platform.BINARY_SENSOR,
+            Platform.SWITCH,
+            Platform.SELECT,
+            Platform.NUMBER,
+            Platform.BUTTON,
+            Platform.FAN,
+        ]
+        if p in discovered
+    ]
 
     return await hass.config_entries.async_unload_platforms(entry, active_platforms)
 

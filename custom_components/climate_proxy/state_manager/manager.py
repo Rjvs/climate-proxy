@@ -9,11 +9,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event
 
-from ..const import (
-    CONF_CLIMATE_ENTITY_ID,
-    ENFORCEMENT_DEBOUNCE_SECONDS,
-    LOGGER,
-)
+from ..const import CONF_CLIMATE_ENTITY_ID, ENFORCEMENT_DEBOUNCE_SECONDS, LOGGER
 from .subscriptions import get_all_sensor_ids
 
 if TYPE_CHECKING:
@@ -35,6 +31,7 @@ class ClimateProxyStateManager:
     """
 
     def __init__(self, hass: HomeAssistant, config_entry: ClimateProxyConfigEntry) -> None:
+        """Initialise the state manager for a config entry."""
         self.hass = hass
         self.config_entry = config_entry
         self._climate_entity_id: str = config_entry.data[CONF_CLIMATE_ENTITY_ID]
@@ -131,10 +128,7 @@ class ClimateProxyStateManager:
             await self.climate_proxy_entity.async_on_underlying_state_changed(new_state)
 
             # If device just came back from unavailable, drain pending state
-            if (
-                was_unavailable
-                and new_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-            ):
+            if was_unavailable and new_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
                 await self._async_drain_pending_state()
                 return  # drain already applies corrections
 
@@ -199,9 +193,7 @@ class ClimateProxyStateManager:
         platform: str,
         underlying_state: State,
     ) -> None:
-        """
-        Check whether a MitM control entity's underlying state deviates from
-        desired, and push a correction if needed.
+        """Check whether a MitM control entity's state deviates from desired and push a correction.
 
         Called by the MitM entities themselves on state_changed.
         """
@@ -250,8 +242,31 @@ class ClimateProxyStateManager:
             self._climate_entity_id,
         )
         if self.climate_proxy_entity is not None:
-            await self.climate_proxy_entity.async_apply_pending_state(self.pending_state)
+            await self.climate_proxy_entity.async_apply_pending_state(dict(self.pending_state))
         self.pending_state.clear()
+        await self._async_drain_secondary_entities()
+
+    async def _async_drain_secondary_entities(self) -> None:
+        """Push desired state to all secondary control entities on device reconnect."""
+        secondary: list[tuple[str, dict[str, Any]]] = [
+            ("switch", self.switch_proxy_entities),
+            ("select", self.select_proxy_entities),
+            ("number", self.number_proxy_entities),
+            ("fan", self.fan_proxy_entities),
+        ]
+        for platform, entities in secondary:
+            for entity_id, entity in entities.items():
+                underlying = self.hass.states.get(entity_id)
+                if underlying is None:
+                    continue
+                corrections = entity.get_corrections(underlying)
+                for service, kwargs in corrections.items():
+                    await self.hass.services.async_call(
+                        platform,
+                        service,
+                        {**kwargs, "entity_id": entity_id},
+                        blocking=False,
+                    )
 
     # ------------------------------------------------------------------
     # Debounce helpers

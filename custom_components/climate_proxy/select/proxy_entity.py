@@ -26,13 +26,16 @@ class ClimateProxySelectRestoreData(ExtraStoredData):
     """Persisted desired state for a select proxy entity."""
 
     def __init__(self, option: str | None) -> None:
+        """Initialise with the desired selected option."""
         self._option = option
 
     def as_dict(self) -> dict[str, Any]:
+        """Return the select desired state as a plain dict."""
         return {RESTORE_KEY_CURRENT_OPTION: self._option}
 
     @classmethod
     def from_dict(cls, restored: dict[str, Any]) -> ClimateProxySelectRestoreData:
+        """Restore from a plain dict."""
         return cls(restored.get(RESTORE_KEY_CURRENT_OPTION))
 
 
@@ -54,6 +57,7 @@ class ClimateProxySelectEntity(SelectEntity, RestoreEntity):
         state_manager: ClimateProxyStateManager,
         device_info: DeviceInfo,
     ) -> None:
+        """Initialise the select proxy entity."""
         self._config_entry = config_entry
         self._underlying_entry = underlying_entry
         self._state_manager = state_manager
@@ -165,9 +169,7 @@ class ClimateProxySelectEntity(SelectEntity, RestoreEntity):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _on_underlying_state_changed(
-        self, event: Event[EventStateChangedData]
-    ) -> None:
+    def _on_underlying_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle state_changed on the underlying entity (sync HA callback)."""
         new_state: State | None = event.data.get("new_state")
         if new_state is None:
@@ -177,9 +179,7 @@ class ClimateProxySelectEntity(SelectEntity, RestoreEntity):
         if options:
             self._attr_options = options
         self.hass.async_create_task(
-            self._state_manager.async_enforce_control_entity(
-                self._underlying_entity_id, "select", new_state
-            ),
+            self._state_manager.async_enforce_control_entity(self._underlying_entity_id, "select", new_state),
             name=f"climate_proxy:select_enforce:{self._underlying_entity_id}",
         )
 

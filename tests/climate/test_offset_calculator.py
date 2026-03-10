@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from custom_components.climate_proxy.climate.offset_calculator import (
     calculate_device_setpoint,
@@ -100,27 +101,21 @@ class TestCalculateDeviceSetpoint:
 
     def test_no_offset_needed(self) -> None:
         """When device sensor == external sensor, setpoint equals proxy target."""
-        result = calculate_device_setpoint(
-            proxy_target=21.0, device_internal_temp=21.0, external_temp=21.0
-        )
+        result = calculate_device_setpoint(proxy_target=21.0, device_internal_temp=21.0, external_temp=21.0)
         assert result == pytest.approx(21.0)
 
     def test_positive_offset(self) -> None:
         """Device reads warmer than external sensor — reduce setpoint."""
         # Device reads 23°C, external reads 20°C, offset=3
         # User wants external to reach 22°C → device_setpoint = 22 + 3 = 25
-        result = calculate_device_setpoint(
-            proxy_target=22.0, device_internal_temp=23.0, external_temp=20.0
-        )
+        result = calculate_device_setpoint(proxy_target=22.0, device_internal_temp=23.0, external_temp=20.0)
         assert result == pytest.approx(25.0)
 
     def test_negative_offset(self) -> None:
         """Device reads cooler than external sensor — increase setpoint."""
         # Device reads 18°C, external reads 20°C, offset=-2
         # User wants external to reach 22°C → device_setpoint = 22 + (-2) = 20
-        result = calculate_device_setpoint(
-            proxy_target=22.0, device_internal_temp=18.0, external_temp=20.0
-        )
+        result = calculate_device_setpoint(proxy_target=22.0, device_internal_temp=18.0, external_temp=20.0)
         assert result == pytest.approx(20.0)
 
 

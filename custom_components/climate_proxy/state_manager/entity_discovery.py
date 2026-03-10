@@ -28,9 +28,7 @@ def discover_underlying_entities(
     hass: HomeAssistant,
     climate_entity_id: str,
 ) -> dict[Platform, list[RegistryEntry]]:
-    """
-    Find the HA device that owns the given climate entity and return all
-    other entities on that device, grouped by platform.
+    """Find the HA device that owns the given climate entity and return its other entities by platform.
 
     Args:
         hass: Home Assistant instance.

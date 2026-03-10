@@ -26,13 +26,16 @@ class ClimateProxySwitchRestoreData(ExtraStoredData):
     """Persisted desired state for a switch proxy entity."""
 
     def __init__(self, is_on: bool) -> None:
+        """Initialise with the desired on/off state."""
         self._is_on = is_on
 
     def as_dict(self) -> dict[str, Any]:
+        """Return the switch desired state as a plain dict."""
         return {RESTORE_KEY_IS_ON: self._is_on}
 
     @classmethod
     def from_dict(cls, restored: dict[str, Any]) -> ClimateProxySwitchRestoreData:
+        """Restore from a plain dict."""
         return cls(bool(restored.get(RESTORE_KEY_IS_ON, False)))
 
 
@@ -55,6 +58,7 @@ class ClimateProxySwitchEntity(SwitchEntity, RestoreEntity):
         state_manager: ClimateProxyStateManager,
         device_info: DeviceInfo,
     ) -> None:
+        """Initialise the switch proxy entity."""
         self._config_entry = config_entry
         self._underlying_entry = underlying_entry
         self._state_manager = state_manager
@@ -158,17 +162,13 @@ class ClimateProxySwitchEntity(SwitchEntity, RestoreEntity):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _on_underlying_state_changed(
-        self, event: Event[EventStateChangedData]
-    ) -> None:
+    def _on_underlying_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle state_changed on the underlying entity (sync HA callback)."""
         new_state: State | None = event.data.get("new_state")
         if new_state is None:
             return
         self.hass.async_create_task(
-            self._state_manager.async_enforce_control_entity(
-                self._underlying_entity_id, "switch", new_state
-            ),
+            self._state_manager.async_enforce_control_entity(self._underlying_entity_id, "switch", new_state),
             name=f"climate_proxy:switch_enforce:{self._underlying_entity_id}",
         )
 

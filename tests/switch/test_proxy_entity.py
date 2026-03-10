@@ -5,12 +5,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from homeassistant.core import State
 
-from custom_components.climate_proxy.switch.proxy_entity import (
-    ClimateProxySwitchEntity,
-    ClimateProxySwitchRestoreData,
-)
+from custom_components.climate_proxy.switch.proxy_entity import ClimateProxySwitchEntity, ClimateProxySwitchRestoreData
+from homeassistant.core import State
 
 
 def _make_entity() -> ClimateProxySwitchEntity:
@@ -137,9 +134,7 @@ class TestClimateProxySwitchEntity:
 
         entity = _make_entity()
         entity.hass = MagicMock()
-        entity.hass.states.get = MagicMock(
-            return_value=State("switch.test_switch", STATE_UNAVAILABLE)
-        )
+        entity.hass.states.get = MagicMock(return_value=State("switch.test_switch", STATE_UNAVAILABLE))
         entity.hass.services.async_call = AsyncMock()
         entity.async_write_ha_state = MagicMock()
 

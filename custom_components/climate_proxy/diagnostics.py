@@ -66,10 +66,7 @@ async def async_get_config_entry_diagnostics(
         }
 
     # Discovered entities summary
-    discovered_summary = {
-        platform.value: [e.entity_id for e in entries]
-        for platform, entries in discovered.items()
-    }
+    discovered_summary = {platform.value: [e.entity_id for e in entries] for platform, entries in discovered.items()}
 
     # Pending state queue
     pending_state = {k: str(v) for k, v in state_manager.pending_state.items()}

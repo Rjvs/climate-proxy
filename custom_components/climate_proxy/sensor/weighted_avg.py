@@ -21,9 +21,7 @@ PARALLEL_UPDATES = 0
 
 
 class WeightedAvgTemperatureSensor(SensorEntity):
-    """
-    Diagnostic sensor that exposes the weighted average of all configured
-    temperature sensors for this climate_proxy entry.
+    """Diagnostic sensor exposing the weighted average of configured temperature sensors.
 
     Its value is recomputed on demand by reading the current HA state of each
     contributing sensor; no polling is required because the state manager calls
@@ -57,7 +55,7 @@ class WeightedAvgTemperatureSensor(SensorEntity):
         self._attr_device_info = device_info
 
         self._attr_unique_id = f"{config_entry.entry_id}_weighted_avg_temperature"
-        self._attr_name = "Weighted Average Temperature"
+        self._attr_translation_key = "weighted_avg_temperature"
 
     # ------------------------------------------------------------------
     # SensorEntity properties
@@ -79,9 +77,7 @@ class WeightedAvgTemperatureSensor(SensorEntity):
 
 
 class WeightedAvgHumiditySensor(SensorEntity):
-    """
-    Diagnostic sensor that exposes the weighted average of all configured
-    humidity sensors for this climate_proxy entry.
+    """Diagnostic sensor exposing the weighted average of configured humidity sensors.
 
     Its value is recomputed on demand by reading the current HA state of each
     contributing sensor; no polling is required because the state manager calls
@@ -113,7 +109,7 @@ class WeightedAvgHumiditySensor(SensorEntity):
         self._attr_device_info = device_info
 
         self._attr_unique_id = f"{config_entry.entry_id}_weighted_avg_humidity"
-        self._attr_name = "Weighted Average Humidity"
+        self._attr_translation_key = "weighted_avg_humidity"
 
     # ------------------------------------------------------------------
     # SensorEntity properties

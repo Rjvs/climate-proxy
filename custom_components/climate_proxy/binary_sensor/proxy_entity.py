@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event
-
 
 if TYPE_CHECKING:
     from homeassistant.core import Event, EventStateChangedData
@@ -40,6 +40,7 @@ class ClimateProxyBinarySensorEntity(BinarySensorEntity):
         state_manager: ClimateProxyStateManager,
         device_info: DeviceInfo,
     ) -> None:
+        """Initialise the binary sensor proxy entity."""
         self._config_entry = config_entry
         self._underlying_entry = underlying_entry
         self._state_manager = state_manager
@@ -51,10 +52,8 @@ class ClimateProxyBinarySensorEntity(BinarySensorEntity):
 
         # Mirror device_class from registry entry when available
         if underlying_entry.device_class:
-            try:
+            with contextlib.suppress(ValueError):
                 self._attr_device_class = BinarySensorDeviceClass(underlying_entry.device_class)
-            except ValueError:
-                pass
 
         # Subscription cleanup
         self._unsub_state_change: Any = None
@@ -89,10 +88,8 @@ class ClimateProxyBinarySensorEntity(BinarySensorEntity):
             self._unsub_state_change()
             self._unsub_state_change = None
 
-        try:
+        with contextlib.suppress(ValueError):
             self._state_manager.binary_sensor_proxy_entities.remove(self)
-        except ValueError:
-            pass
 
     # ------------------------------------------------------------------
     # BinarySensorEntity properties
@@ -128,9 +125,7 @@ class ClimateProxyBinarySensorEntity(BinarySensorEntity):
     # ------------------------------------------------------------------
 
     @callback
-    def _on_underlying_state_changed(
-        self, event: Event[EventStateChangedData]
-    ) -> None:
+    def _on_underlying_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle state_changed events from the underlying binary sensor entity."""
         new_state = event.data.get("new_state")
         if new_state is not None:

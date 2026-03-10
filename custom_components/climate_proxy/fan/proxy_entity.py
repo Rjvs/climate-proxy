@@ -31,11 +31,13 @@ class ClimateProxyFanRestoreData(ExtraStoredData):
         percentage: int | None,
         preset_mode: str | None,
     ) -> None:
+        """Initialise with desired fan state values."""
         self._is_on = is_on
         self._percentage = percentage
         self._preset_mode = preset_mode
 
     def as_dict(self) -> dict[str, Any]:
+        """Return the fan desired state as a plain dict."""
         return {
             RESTORE_KEY_IS_ON: self._is_on,
             RESTORE_KEY_PERCENTAGE: self._percentage,
@@ -44,6 +46,7 @@ class ClimateProxyFanRestoreData(ExtraStoredData):
 
     @classmethod
     def from_dict(cls, restored: dict[str, Any]) -> ClimateProxyFanRestoreData:
+        """Restore from a plain dict."""
         raw_pct = restored.get(RESTORE_KEY_PERCENTAGE)
         return cls(
             is_on=bool(restored.get(RESTORE_KEY_IS_ON, False)),
@@ -72,6 +75,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         state_manager: ClimateProxyStateManager,
         device_info: DeviceInfo,
     ) -> None:
+        """Initialise the fan proxy entity."""
         self._config_entry = config_entry
         self._underlying_entry = underlying_entry
         self._state_manager = state_manager
@@ -198,7 +202,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         """Turn off: update desired state, write to HA, push to underlying entity."""
         self._desired_is_on = False
         self.async_write_ha_state()
-        await self._push_or_queue("homeassistant", "turn_off", {})
+        await self._push_or_queue("fan", "turn_off", {})
 
     async def async_set_percentage(self, percentage: int) -> None:
         """Set speed percentage: update desired state, write to HA, push to underlying entity."""
@@ -284,9 +288,7 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
             features |= FanEntityFeature.PRESET_MODE
         self._attr_supported_features = features
 
-    def _on_underlying_state_changed(
-        self, event: Event[EventStateChangedData]
-    ) -> None:
+    def _on_underlying_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle state_changed on the underlying entity (sync HA callback)."""
         new_state: State | None = event.data.get("new_state")
         if new_state is None:
@@ -294,15 +296,11 @@ class ClimateProxyFanEntity(FanEntity, RestoreEntity):
         # Mirror capabilities on each change
         self._mirror_capabilities(new_state)
         self.hass.async_create_task(
-            self._state_manager.async_enforce_control_entity(
-                self._underlying_entity_id, "fan", new_state
-            ),
+            self._state_manager.async_enforce_control_entity(self._underlying_entity_id, "fan", new_state),
             name=f"climate_proxy:fan_enforce:{self._underlying_entity_id}",
         )
 
-    async def _push_or_queue(
-        self, domain: str, service: str, kwargs: dict[str, Any]
-    ) -> None:
+    async def _push_or_queue(self, domain: str, service: str, kwargs: dict[str, Any]) -> None:
         """Push a fan service call to the underlying entity, or queue if unavailable."""
         underlying = self.hass.states.get(self._underlying_entity_id)
         if underlying is not None and underlying.state not in (

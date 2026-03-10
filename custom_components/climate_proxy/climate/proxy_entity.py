@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.climate import (
@@ -21,18 +22,13 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_LOW,
     SERVICE_SET_AUX_HEAT,
     SERVICE_SET_FAN_MODE,
-    SERVICE_SET_HVAC_MODE,
     SERVICE_SET_HUMIDITY,
+    SERVICE_SET_HVAC_MODE,
     SERVICE_SET_PRESET_MODE,
     SERVICE_SET_SWING_MODE,
     SERVICE_SET_TEMPERATURE,
 )
-from homeassistant.const import (
-    ATTR_TEMPERATURE,
-    STATE_UNAVAILABLE,
-    STATE_UNKNOWN,
-    UnitOfTemperature,
-)
+from homeassistant.const import ATTR_TEMPERATURE, STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
 from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 
 from ..const import (
@@ -61,11 +57,7 @@ from .capabilities import (
     extract_temperature_unit,
 )
 from .enforcement import get_climate_corrections
-from .offset_calculator import (
-    calculate_device_setpoint,
-    calculate_setpoint_range,
-    calculate_weighted_average,
-)
+from .offset_calculator import calculate_device_setpoint, calculate_setpoint_range, calculate_weighted_average
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant, State
@@ -81,13 +73,16 @@ class ClimateProxyRestoreData(ExtraStoredData):
     """Holds the desired state that climate_proxy enforces on the underlying device."""
 
     def __init__(self, data: dict[str, Any]) -> None:
+        """Initialise with the desired state data dict."""
         self._data = data
 
     def as_dict(self) -> dict[str, Any]:
+        """Return the data as a plain dict."""
         return self._data
 
     @classmethod
     def from_dict(cls, restored: dict[str, Any]) -> ClimateProxyRestoreData:
+        """Restore from a plain dict."""
         return cls(restored)
 
 
@@ -119,6 +114,7 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         state_manager: ClimateProxyStateManager,
         device_info: DeviceInfo,
     ) -> None:
+        """Initialise the climate proxy entity."""
         self.hass = hass
         self._config_entry = config_entry
         self._state_manager = state_manager
@@ -183,26 +179,26 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
     @property
     def extra_restore_state_data(self) -> ClimateProxyRestoreData:
         """Return the desired state to be persisted across restarts."""
-        return ClimateProxyRestoreData({
-            RESTORE_KEY_HVAC_MODE: self._desired_hvac_mode,
-            RESTORE_KEY_TARGET_TEMP: self._desired_target_temperature,
-            RESTORE_KEY_TARGET_TEMP_LOW: self._desired_target_temperature_low,
-            RESTORE_KEY_TARGET_TEMP_HIGH: self._desired_target_temperature_high,
-            RESTORE_KEY_TARGET_HUMIDITY: self._desired_target_humidity,
-            RESTORE_KEY_PRESET_MODE: self._desired_preset_mode,
-            RESTORE_KEY_FAN_MODE: self._desired_fan_mode,
-            RESTORE_KEY_SWING_MODE: self._desired_swing_mode,
-            RESTORE_KEY_AUX_HEAT: self._desired_aux_heat,
-            RESTORE_KEY_CURRENT_OFFSET: self._current_offset,
-        })
+        return ClimateProxyRestoreData(
+            {
+                RESTORE_KEY_HVAC_MODE: self._desired_hvac_mode,
+                RESTORE_KEY_TARGET_TEMP: self._desired_target_temperature,
+                RESTORE_KEY_TARGET_TEMP_LOW: self._desired_target_temperature_low,
+                RESTORE_KEY_TARGET_TEMP_HIGH: self._desired_target_temperature_high,
+                RESTORE_KEY_TARGET_HUMIDITY: self._desired_target_humidity,
+                RESTORE_KEY_PRESET_MODE: self._desired_preset_mode,
+                RESTORE_KEY_FAN_MODE: self._desired_fan_mode,
+                RESTORE_KEY_SWING_MODE: self._desired_swing_mode,
+                RESTORE_KEY_AUX_HEAT: self._desired_aux_heat,
+                RESTORE_KEY_CURRENT_OFFSET: self._current_offset,
+            }
+        )
 
     def _restore_desired_state(self, data: dict[str, Any]) -> None:
         """Populate desired state from restored data dict."""
         if hvac := data.get(RESTORE_KEY_HVAC_MODE):
-            try:
+            with contextlib.suppress(ValueError):
                 self._desired_hvac_mode = HVACMode(hvac)
-            except ValueError:
-                pass
         self._desired_target_temperature = data.get(RESTORE_KEY_TARGET_TEMP)
         self._desired_target_temperature_low = data.get(RESTORE_KEY_TARGET_TEMP_LOW)
         self._desired_target_temperature_high = data.get(RESTORE_KEY_TARGET_TEMP_HIGH)
@@ -219,44 +215,54 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
 
     @property
     def hvac_mode(self) -> HVACMode:
+        """Return the desired HVAC mode."""
         return self._desired_hvac_mode
 
     @property
     def target_temperature(self) -> float | None:
+        """Return the desired target temperature."""
         return self._desired_target_temperature
 
     @property
     def target_temperature_low(self) -> float | None:
+        """Return the desired target temperature low."""
         return self._desired_target_temperature_low
 
     @property
     def target_temperature_high(self) -> float | None:
+        """Return the desired target temperature high."""
         return self._desired_target_temperature_high
 
     @property
     def target_humidity(self) -> int | None:
+        """Return the desired target humidity."""
         if self._desired_target_humidity is not None:
             return int(self._desired_target_humidity)
         return None
 
     @property
     def preset_mode(self) -> str | None:
+        """Return the desired preset mode."""
         return self._desired_preset_mode
 
     @property
     def fan_mode(self) -> str | None:
+        """Return the desired fan mode."""
         return self._desired_fan_mode
 
     @property
     def swing_mode(self) -> str | None:
+        """Return the desired swing mode."""
         return self._desired_swing_mode
 
     @property
     def is_aux_heat(self) -> bool | None:
+        """Return the desired aux heat state."""
         return self._desired_aux_heat
 
     @property
     def available(self) -> bool:
+        """Return True — always available."""
         # Always available — unavailability of underlying device is handled via command queue
         return True
 
@@ -265,11 +271,13 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
     # ------------------------------------------------------------------
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Set the HVAC mode."""
         self._desired_hvac_mode = hvac_mode
         self.async_write_ha_state()
         await self._push_or_queue(SERVICE_SET_HVAC_MODE, {ATTR_HVAC_MODE: hvac_mode})
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
+        """Set the target temperature."""
         temp = kwargs.get(ATTR_TEMPERATURE)
         low = kwargs.get(ATTR_TARGET_TEMP_LOW)
         high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
@@ -282,10 +290,8 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         if high is not None:
             self._desired_target_temperature_high = float(high)
         if hvac is not None:
-            try:
+            with contextlib.suppress(ValueError):
                 self._desired_hvac_mode = HVACMode(hvac)
-            except ValueError:
-                pass
 
         self.async_write_ha_state()
         effective_temp, effective_low, effective_high = self._get_effective_setpoints()
@@ -304,40 +310,45 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
             await self._push_or_queue(SERVICE_SET_TEMPERATURE, service_kwargs)
 
     async def async_set_humidity(self, humidity: int) -> None:
+        """Set the target humidity."""
         self._desired_target_humidity = float(humidity)
         self.async_write_ha_state()
         await self._push_or_queue(SERVICE_SET_HUMIDITY, {"humidity": humidity})
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
+        """Set the fan mode."""
         self._desired_fan_mode = fan_mode
         self.async_write_ha_state()
         await self._push_or_queue(SERVICE_SET_FAN_MODE, {ATTR_FAN_MODE: fan_mode})
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set the preset mode."""
         self._desired_preset_mode = preset_mode
         self.async_write_ha_state()
         await self._push_or_queue(SERVICE_SET_PRESET_MODE, {ATTR_PRESET_MODE: preset_mode})
 
     async def async_set_swing_mode(self, swing_mode: str) -> None:
+        """Set the swing mode."""
         self._desired_swing_mode = swing_mode
         self.async_write_ha_state()
         await self._push_or_queue(SERVICE_SET_SWING_MODE, {ATTR_SWING_MODE: swing_mode})
 
     async def async_set_aux_heat(self, aux_heat: bool) -> None:
+        """Set the aux heat state."""
         self._desired_aux_heat = aux_heat
         self.async_write_ha_state()
         await self._push_or_queue(SERVICE_SET_AUX_HEAT, {ATTR_AUX_HEAT: aux_heat})
 
     async def async_turn_on(self) -> None:
+        """Turn on the climate entity."""
         # Set to the first non-OFF mode, or HEAT_COOL if available
         non_off = [m for m in self._attr_hvac_modes if m != HVACMode.OFF]
         if non_off:
-            target = (
-                HVACMode.HEAT_COOL if HVACMode.HEAT_COOL in non_off else non_off[0]
-            )
+            target = HVACMode.HEAT_COOL if HVACMode.HEAT_COOL in non_off else non_off[0]
             await self.async_set_hvac_mode(target)
 
     async def async_turn_off(self) -> None:
+        """Turn off the climate entity."""
         await self.async_set_hvac_mode(HVACMode.OFF)
 
     # ------------------------------------------------------------------
@@ -501,15 +512,10 @@ class ClimateProxyClimateEntity(ClimateEntity, RestoreEntity):
         device_internal = float(device_internal_raw)
 
         if self._desired_target_temperature is not None:
-            eff_temp = calculate_device_setpoint(
-                self._desired_target_temperature, device_internal, external_temp
-            )
+            eff_temp = calculate_device_setpoint(self._desired_target_temperature, device_internal, external_temp)
             return eff_temp, None, None
 
-        if (
-            self._desired_target_temperature_low is not None
-            and self._desired_target_temperature_high is not None
-        ):
+        if self._desired_target_temperature_low is not None and self._desired_target_temperature_high is not None:
             eff_low, eff_high = calculate_setpoint_range(
                 self._desired_target_temperature_low,
                 self._desired_target_temperature_high,

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 from homeassistant.components.climate import ClimateEntityFeature, HVACMode
+from homeassistant.const import UnitOfTemperature
 
 if TYPE_CHECKING:
     from homeassistant.core import State
@@ -27,13 +29,13 @@ def detect_supported_features(state: State) -> ClimateEntityFeature:
     if HVACMode.OFF in hvac_modes:
         features |= ClimateEntityFeature.TURN_OFF
 
-    if attrs.get("target_temperature") is not None or "target_temperature" in attrs:
+    if "temperature" in attrs:
         features |= ClimateEntityFeature.TARGET_TEMPERATURE
 
-    if "target_temperature_low" in attrs or "target_temperature_high" in attrs:
+    if "target_temp_low" in attrs or "target_temp_high" in attrs:
         features |= ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 
-    if attrs.get("target_humidity") is not None or "target_humidity" in attrs:
+    if "target_humidity" in attrs:
         features |= ClimateEntityFeature.TARGET_HUMIDITY
 
     fan_modes = attrs.get("fan_modes")
@@ -59,10 +61,8 @@ def extract_hvac_modes(state: State) -> list[HVACMode]:
     raw = state.attributes.get("hvac_modes", [])
     result = []
     for mode in raw:
-        try:
+        with contextlib.suppress(ValueError):
             result.append(HVACMode(mode))
-        except ValueError:
-            pass
     return result or [HVACMode.OFF]
 
 
@@ -96,5 +96,4 @@ def extract_temp_step(state: State) -> float:
 
 def extract_temperature_unit(state: State) -> str:
     """Return the temperature unit used by the underlying entity."""
-    from homeassistant.const import UnitOfTemperature
     return state.attributes.get("temperature_unit", UnitOfTemperature.CELSIUS)

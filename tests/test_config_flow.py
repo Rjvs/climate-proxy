@@ -6,8 +6,6 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.climate_proxy.const import (
     CONF_CLIMATE_ENTITY_ID,
@@ -18,6 +16,8 @@ from custom_components.climate_proxy.const import (
     CONF_TEMPERATURE_SENSORS,
     DOMAIN,
 )
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 
 from .conftest import create_mock_climate_state
 
@@ -27,9 +27,7 @@ async def test_config_flow_no_sensors(hass: HomeAssistant) -> None:
     """Complete 3-step flow (no sensors selected) creates a valid config entry."""
     hass.states.async_set("climate.test", "heat", {"hvac_modes": ["off", "heat"]})
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "user"}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
 
@@ -65,9 +63,7 @@ async def test_config_flow_with_temp_sensors(hass: HomeAssistant) -> None:
     hass.states.async_set("sensor.bedroom", "18.5", {"device_class": "temperature"})
     hass.states.async_set("sensor.hallway", "20.0", {"device_class": "temperature"})
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "user"}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {CONF_PROXY_NAME: "Proxy", CONF_CLIMATE_ENTITY_ID: "climate.test"},
@@ -101,9 +97,7 @@ async def test_config_flow_with_temp_sensors(hass: HomeAssistant) -> None:
 @pytest.mark.integration
 async def test_config_flow_entity_not_found(hass: HomeAssistant) -> None:
     """Selecting a climate entity that doesn't exist shows an error."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "user"}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {CONF_PROXY_NAME: "Proxy", CONF_CLIMATE_ENTITY_ID: "climate.nonexistent"},
@@ -118,25 +112,17 @@ async def test_config_flow_duplicate_aborted(hass: HomeAssistant) -> None:
     hass.states.async_set("climate.test", "heat", {"hvac_modes": ["off", "heat"]})
 
     # Complete the flow once
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "user"}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {CONF_PROXY_NAME: "Proxy 1", CONF_CLIMATE_ENTITY_ID: "climate.test"},
     )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"temperature_sensor_ids": []}
-    )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"humidity_sensor_ids": []}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"temperature_sensor_ids": []})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"humidity_sensor_ids": []})
     assert result["type"] == FlowResultType.CREATE_ENTRY
 
     # Try to add the same climate entity again
-    result2 = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "user"}
-    )
+    result2 = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     result2 = await hass.config_entries.flow.async_configure(
         result2["flow_id"],
         {CONF_PROXY_NAME: "Proxy 2", CONF_CLIMATE_ENTITY_ID: "climate.test"},

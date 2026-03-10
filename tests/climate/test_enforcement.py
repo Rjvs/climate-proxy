@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from homeassistant.components.climate import HVACMode
-from homeassistant.core import State
 
 from custom_components.climate_proxy.climate.enforcement import get_climate_corrections
+from homeassistant.components.climate import HVACMode
+from homeassistant.core import State
 
 
 def _state(hvac_mode: str, attrs: dict) -> State:
@@ -15,7 +15,6 @@ def _state(hvac_mode: str, attrs: dict) -> State:
 
 @pytest.mark.unit
 class TestGetClimateCorrections:
-
     def test_no_corrections_needed(self) -> None:
         """When underlying state matches desired state, no corrections returned."""
         state = _state(HVACMode.HEAT, {"temperature": 21.0})
