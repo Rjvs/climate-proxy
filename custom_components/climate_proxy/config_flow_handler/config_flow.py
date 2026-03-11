@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant import config_entries
+from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
 from ..const import CONF_CLIMATE_ENTITY_ID, CONF_HUMIDITY_SENSORS, CONF_PROXY_NAME, CONF_TEMPERATURE_SENSORS, DOMAIN
 from .helpers import build_sensor_list
@@ -68,17 +69,23 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             climate_entity_id = user_input[CONF_CLIMATE_ENTITY_ID]
 
-            # Validate the entity exists
             if self.hass.states.get(climate_entity_id) is None:
                 errors[CONF_CLIMATE_ENTITY_ID] = "entity_not_found"
+            elif climate_entity_id.split(".")[0] != "climate":
+                errors[CONF_CLIMATE_ENTITY_ID] = "entity_not_climate"
             else:
-                # Prevent two proxies for the same underlying device
-                await self.async_set_unique_id(climate_entity_id)
-                self._abort_if_unique_id_configured()
+                registry = async_get_entity_registry(self.hass)
+                er_entry = registry.async_get(climate_entity_id)
+                if er_entry is not None and er_entry.platform == DOMAIN:
+                    errors[CONF_CLIMATE_ENTITY_ID] = "entity_is_proxy"
+                else:
+                    # Prevent two proxies for the same underlying device
+                    await self.async_set_unique_id(climate_entity_id)
+                    self._abort_if_unique_id_configured()
 
-                self._proxy_name = user_input[CONF_PROXY_NAME]
-                self._climate_entity_id = climate_entity_id
-                return await self.async_step_temp_sensors()
+                    self._proxy_name = user_input[CONF_PROXY_NAME]
+                    self._climate_entity_id = climate_entity_id
+                    return await self.async_step_temp_sensors()
 
         return self.async_show_form(
             step_id="user",
@@ -101,15 +108,22 @@ class ClimateProxyConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             climate_entity_id = user_input[CONF_CLIMATE_ENTITY_ID]
             if self.hass.states.get(climate_entity_id) is None:
                 errors[CONF_CLIMATE_ENTITY_ID] = "entity_not_found"
+            elif climate_entity_id.split(".")[0] != "climate":
+                errors[CONF_CLIMATE_ENTITY_ID] = "entity_not_climate"
             else:
-                return self.async_update_reload_and_abort(
-                    self._get_reconfigure_entry(),
-                    title=user_input[CONF_PROXY_NAME],
-                    data_updates={
-                        CONF_PROXY_NAME: user_input[CONF_PROXY_NAME],
-                        CONF_CLIMATE_ENTITY_ID: climate_entity_id,
-                    },
-                )
+                registry = async_get_entity_registry(self.hass)
+                er_entry = registry.async_get(climate_entity_id)
+                if er_entry is not None and er_entry.platform == DOMAIN:
+                    errors[CONF_CLIMATE_ENTITY_ID] = "entity_is_proxy"
+                else:
+                    return self.async_update_reload_and_abort(
+                        self._get_reconfigure_entry(),
+                        title=user_input[CONF_PROXY_NAME],
+                        data_updates={
+                            CONF_PROXY_NAME: user_input[CONF_PROXY_NAME],
+                            CONF_CLIMATE_ENTITY_ID: climate_entity_id,
+                        },
+                    )
 
         entry = self._get_reconfigure_entry()
         return self.async_show_form(

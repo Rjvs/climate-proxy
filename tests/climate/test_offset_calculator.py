@@ -94,6 +94,27 @@ class TestCalculateWeightedAverage:
         result = calculate_weighted_average([], hass)
         assert result is None
 
+    def test_all_sensors_entity_not_found_returns_none(self) -> None:
+        """When all sensor entity_ids return None from states.get, result is None."""
+        hass = MagicMock()
+        hass.states.get = MagicMock(return_value=None)
+        configs = [
+            {CONF_SENSOR_ENTITY_ID: "sensor.missing_a", CONF_SENSOR_WEIGHT: 1.0},
+            {CONF_SENSOR_ENTITY_ID: "sensor.missing_b", CONF_SENSOR_WEIGHT: 1.0},
+        ]
+        result = calculate_weighted_average(configs, hass)
+        assert result is None
+
+    def test_zero_weight_sensor_excluded(self) -> None:
+        """A sensor with weight=0.0 contributes nothing; result comes from non-zero sensor only."""
+        hass = self._make_hass({"sensor.a": "0.0", "sensor.b": "20.0"})
+        configs = [
+            {CONF_SENSOR_ENTITY_ID: "sensor.a", CONF_SENSOR_WEIGHT: 0.0},
+            {CONF_SENSOR_ENTITY_ID: "sensor.b", CONF_SENSOR_WEIGHT: 1.0},
+        ]
+        result = calculate_weighted_average(configs, hass)
+        assert result == pytest.approx(20.0)
+
 
 @pytest.mark.unit
 class TestCalculateDeviceSetpoint:
@@ -174,6 +195,28 @@ class TestCalculateDeviceSetpoint:
         assert result == pytest.approx(22.0)
         assert 7.0 <= result <= 35.0
 
+    def test_exact_boundary_min_not_clamped(self) -> None:
+        """Result exactly equal to min_temp is not altered."""
+        result = calculate_device_setpoint(
+            proxy_target=7.0,
+            device_internal_temp=7.0,
+            external_temp=7.0,
+            min_temp=7.0,
+            max_temp=35.0,
+        )
+        assert result == pytest.approx(7.0)
+
+    def test_exact_boundary_max_not_clamped(self) -> None:
+        """Result exactly equal to max_temp is not altered."""
+        result = calculate_device_setpoint(
+            proxy_target=35.0,
+            device_internal_temp=35.0,
+            external_temp=35.0,
+            min_temp=7.0,
+            max_temp=35.0,
+        )
+        assert result == pytest.approx(35.0)
+
 
 @pytest.mark.unit
 class TestCalculateSetpointRange:
@@ -220,3 +263,16 @@ class TestCalculateSetpointRange:
         # offset = 5 - 25 = -20 → low=-10 (clamped to 7), high=-6 (clamped to 7)
         assert low == pytest.approx(7.0)
         assert high == pytest.approx(7.0)
+
+    def test_range_no_offset_identity(self) -> None:
+        """When device internal temp equals external temp, range is unchanged."""
+        low, high = calculate_setpoint_range(
+            proxy_target_low=18.0,
+            proxy_target_high=24.0,
+            device_internal_temp=20.0,
+            external_temp=20.0,
+            min_temp=7.0,
+            max_temp=35.0,
+        )
+        assert low == pytest.approx(18.0)
+        assert high == pytest.approx(24.0)

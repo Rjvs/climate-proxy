@@ -327,6 +327,78 @@ class TestUpdateCapabilities:
 
 
 @pytest.mark.unit
+class TestAsyncOnUnderlyingStateChanged:
+    async def test_availability_change_clears_unavailable_flag(self) -> None:
+        """When underlying comes back from unavailable, flag is cleared."""
+        entity = _make_entity()
+        entity.underlying_was_unavailable = True
+
+        available_state = State("climate.thermostat", "heat", {"hvac_modes": ["off", "heat"]})
+        await entity.async_on_underlying_state_changed(available_state)
+
+        assert entity.underlying_was_unavailable is False
+
+    async def test_unavailable_sets_flag(self) -> None:
+        """When underlying reports unavailable, flag is set."""
+        entity = _make_entity()
+        entity.underlying_was_unavailable = False
+
+        unavailable_state = State("climate.thermostat", STATE_UNAVAILABLE, {})
+        await entity.async_on_underlying_state_changed(unavailable_state)
+
+        assert entity.underlying_was_unavailable is True
+
+    async def test_current_temperature_updated_from_new_state(self) -> None:
+        """Current temperature is updated from the new underlying state."""
+        entity = _make_entity()
+
+        new_state = State("climate.thermostat", "heat", {"current_temperature": 19.5, "hvac_modes": ["off", "heat"]})
+        await entity.async_on_underlying_state_changed(new_state)
+
+        assert entity._attr_current_temperature == pytest.approx(19.5)
+        entity.async_write_ha_state.assert_called()
+
+
+@pytest.mark.unit
+class TestAsyncOnSensorChanged:
+    async def test_no_offset_when_no_sensors(self) -> None:
+        """When no external sensors are configured, offset stays 0."""
+        entity = _make_entity()
+        entity._config_entry.options = {}
+
+        await entity.async_on_sensor_changed()
+
+        assert entity._current_offset == pytest.approx(0.0)
+
+    async def test_offset_recalculated_when_sensors_configured(self) -> None:
+        """When sensors are configured and states available, offset is computed."""
+        entity = _make_entity()
+        entity._config_entry.options = {
+            "temperature_sensors": [
+                {"entity_id": "sensor.ext", "weight": 1.0}
+            ]
+        }
+        # Underlying device reports 22°C internally; external sensor reads 20°C
+        device_state = State("climate.thermostat", "heat", {"current_temperature": 22.0})
+        sensor_state = MagicMock()
+        sensor_state.state = "20.0"
+
+        def get_state(entity_id: str):
+            if entity_id == "climate.thermostat":
+                return device_state
+            if entity_id == "sensor.ext":
+                return sensor_state
+            return None
+
+        entity.hass.states.get = MagicMock(side_effect=get_state)
+
+        await entity.async_on_sensor_changed()
+
+        # offset = device_internal (22) - external_avg (20) = 2.0
+        assert entity._current_offset == pytest.approx(2.0)
+
+
+@pytest.mark.unit
 class TestSetTemperatureSetpointExclusivity:
     """B3: set_temperature must clear the mutually-exclusive setpoint type."""
 

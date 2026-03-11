@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -96,6 +96,107 @@ async def test_unload_entry(hass: HomeAssistant) -> None:
     result = await hass.config_entries.async_unload(entry.entry_id)
     assert result is True
     assert entry.state is ConfigEntryState.NOT_LOADED
+
+
+@pytest.mark.integration
+async def test_setup_activates_fan_platform_when_underlying_has_fan(hass: HomeAssistant) -> None:
+    """When the underlying device has a fan entity, the FAN platform is activated."""
+    from homeassistant.const import Platform
+
+    hass.states.async_set(
+        "climate.test_thermostat",
+        "heat",
+        {"hvac_modes": ["off", "heat"], "temperature": 21.0, "current_temperature": 19.0},
+    )
+
+    entry = _mock_entry(
+        domain=DOMAIN,
+        data={
+            CONF_PROXY_NAME: "Test Proxy",
+            CONF_CLIMATE_ENTITY_ID: "climate.test_thermostat",
+        },
+        options={
+            CONF_TEMPERATURE_SENSORS: [],
+            CONF_HUMIDITY_SENSORS: [],
+        },
+    )
+    entry.add_to_hass(hass)
+
+    mock_fan_entity = MagicMock()
+    mock_fan_entity.entity_id = "fan.test_fan"
+
+    with patch(
+        "custom_components.climate_proxy.discover_underlying_entities",
+        return_value={Platform.FAN: [mock_fan_entity]},
+    ):
+        result = await hass.config_entries.async_setup(entry.entry_id)
+
+    assert result is True
+    assert Platform.FAN in entry.runtime_data.active_platforms
+
+
+@pytest.mark.integration
+async def test_setup_activates_only_climate_and_sensor_when_no_companions(hass: HomeAssistant) -> None:
+    """When no companion entities are discovered, only CLIMATE and SENSOR platforms are active."""
+    from homeassistant.const import Platform
+
+    hass.states.async_set(
+        "climate.test_thermostat",
+        "heat",
+        {"hvac_modes": ["off", "heat"], "temperature": 21.0, "current_temperature": 19.0},
+    )
+
+    entry = _mock_entry(
+        domain=DOMAIN,
+        data={
+            CONF_PROXY_NAME: "Test Proxy",
+            CONF_CLIMATE_ENTITY_ID: "climate.test_thermostat",
+        },
+        options={
+            CONF_TEMPERATURE_SENSORS: [],
+            CONF_HUMIDITY_SENSORS: [],
+        },
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.climate_proxy.discover_underlying_entities",
+        return_value={},
+    ):
+        result = await hass.config_entries.async_setup(entry.entry_id)
+
+    assert result is True
+    assert entry.runtime_data.active_platforms == [Platform.CLIMATE, Platform.SENSOR]
+
+
+@pytest.mark.integration
+async def test_setup_when_underlying_unavailable(hass: HomeAssistant) -> None:
+    """Setup succeeds and entry loads even when the underlying entity is unavailable."""
+    from homeassistant.const import STATE_UNAVAILABLE
+
+    hass.states.async_set("climate.test_thermostat", STATE_UNAVAILABLE, {})
+
+    entry = _mock_entry(
+        domain=DOMAIN,
+        data={
+            CONF_PROXY_NAME: "Test Proxy",
+            CONF_CLIMATE_ENTITY_ID: "climate.test_thermostat",
+        },
+        options={
+            CONF_TEMPERATURE_SENSORS: [],
+            CONF_HUMIDITY_SENSORS: [],
+        },
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.climate_proxy.discover_underlying_entities",
+        return_value={},
+    ):
+        result = await hass.config_entries.async_setup(entry.entry_id)
+
+    assert result is True
+    assert entry.state is ConfigEntryState.LOADED
 
 
 @pytest.mark.integration

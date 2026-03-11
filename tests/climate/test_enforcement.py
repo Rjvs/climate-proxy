@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from custom_components.climate_proxy.climate.enforcement import get_climate_corrections
+from custom_components.climate_proxy.const import HUMIDITY_TOLERANCE, TEMPERATURE_TOLERANCE
 from homeassistant.components.climate import HVACMode
 from homeassistant.core import State
 
@@ -176,3 +177,163 @@ class TestGetClimateCorrections:
             desired_preset_mode="away",
         )
         assert "set_preset_mode" in result
+
+
+@pytest.mark.unit
+class TestToleranceBoundaries:
+    """Tests confirming tolerance boundary semantics (strictly greater than, not >=)."""
+
+    def test_temperature_exactly_at_tolerance_no_correction(self) -> None:
+        """A deviation exactly equal to TEMPERATURE_TOLERANCE must NOT trigger correction."""
+        actual = 21.0 + TEMPERATURE_TOLERANCE  # abs(diff) == TEMPERATURE_TOLERANCE
+        state = _state(HVACMode.HEAT, {"temperature": actual})
+        result = _corrections(
+            underlying_state=state,
+            desired_hvac_mode=HVACMode.HEAT,
+            desired_target_temperature=21.0,
+        )
+        assert "set_temperature" not in result
+
+    def test_temperature_just_above_tolerance_correction(self) -> None:
+        """A deviation just above TEMPERATURE_TOLERANCE must trigger correction."""
+        actual = 21.0 + TEMPERATURE_TOLERANCE + 0.001
+        state = _state(HVACMode.HEAT, {"temperature": actual})
+        result = _corrections(
+            underlying_state=state,
+            desired_hvac_mode=HVACMode.HEAT,
+            desired_target_temperature=21.0,
+        )
+        assert "set_temperature" in result
+
+    def test_humidity_exactly_at_tolerance_no_correction(self) -> None:
+        """A deviation exactly equal to HUMIDITY_TOLERANCE must NOT trigger correction."""
+        actual = 50.0 + HUMIDITY_TOLERANCE
+        state = _state(HVACMode.HEAT, {"humidity": actual})
+        result = _corrections(
+            underlying_state=state,
+            desired_hvac_mode=HVACMode.HEAT,
+            desired_target_humidity=50.0,
+        )
+        assert "set_humidity" not in result
+
+    def test_humidity_just_above_tolerance_correction(self) -> None:
+        """A deviation just above HUMIDITY_TOLERANCE must trigger correction."""
+        actual = 50.0 + HUMIDITY_TOLERANCE + 0.001
+        state = _state(HVACMode.HEAT, {"humidity": actual})
+        result = _corrections(
+            underlying_state=state,
+            desired_hvac_mode=HVACMode.HEAT,
+            desired_target_humidity=50.0,
+        )
+        assert "set_humidity" in result
+
+
+@pytest.mark.unit
+class TestNonNumericAttributes:
+    """Tests for robustness against non-numeric device attribute values."""
+
+    def test_non_numeric_actual_temp_forces_correction(self) -> None:
+        """Non-numeric temperature attribute must not crash and must trigger correction."""
+        state = _state(HVACMode.HEAT, {"temperature": "n/a"})
+        result = _corrections(
+            underlying_state=state,
+            desired_hvac_mode=HVACMode.HEAT,
+            desired_target_temperature=21.0,
+        )
+        assert "set_temperature" in result
+
+    def test_non_numeric_actual_low_forces_range_correction(self) -> None:
+        """Non-numeric target_temp_low must trigger range correction without crashing."""
+        state = _state(HVACMode.HEAT_COOL, {"target_temp_low": "error", "target_temp_high": 24.0})
+        result = _corrections(
+            underlying_state=state,
+            desired_hvac_mode=HVACMode.HEAT_COOL,
+            desired_target_temperature_low=18.0,
+            desired_target_temperature_high=24.0,
+        )
+        assert "set_temperature" in result
+
+    def test_non_numeric_actual_humidity_forces_correction(self) -> None:
+        """Non-numeric humidity attribute must trigger correction without crashing."""
+        state = _state(HVACMode.HEAT, {"humidity": "unavailable"})
+        result = _corrections(
+            underlying_state=state,
+            desired_hvac_mode=HVACMode.HEAT,
+            desired_target_humidity=50.0,
+        )
+        assert "set_humidity" in result
+
+
+@pytest.mark.unit
+class TestNoneUnderlyingAttributes:
+    """Tests for corrections when underlying entity lacks an attribute entirely."""
+
+    def test_preset_correction_when_actual_preset_is_none(self) -> None:
+        """No preset_mode key in attrs should trigger correction."""
+        state = _state(HVACMode.HEAT, {})
+        result = _corrections(underlying_state=state, desired_preset_mode="eco")
+        assert "set_preset_mode" in result
+
+    def test_fan_correction_when_actual_fan_is_none(self) -> None:
+        """No fan_mode key in attrs should trigger correction."""
+        state = _state(HVACMode.HEAT, {})
+        result = _corrections(underlying_state=state, desired_fan_mode="auto")
+        assert "set_fan_mode" in result
+
+    def test_swing_correction_when_actual_swing_is_none(self) -> None:
+        """No swing_mode key in attrs should trigger correction."""
+        state = _state(HVACMode.HEAT, {})
+        result = _corrections(underlying_state=state, desired_swing_mode="on")
+        assert "set_swing_mode" in result
+
+
+@pytest.mark.unit
+class TestAllCorrectionsSimultaneously:
+    def test_all_seven_corrections_at_once(self) -> None:
+        """When all desired values deviate from underlying, all 7 service keys are returned."""
+        state = _state(
+            HVACMode.COOL,
+            {
+                "temperature": 19.0,
+                "humidity": 30.0,
+                "fan_mode": "low",
+                "preset_mode": "none",
+                "swing_mode": "off",
+                "swing_horizontal_mode": "off",
+            },
+        )
+        result = _corrections(
+            underlying_state=state,
+            desired_hvac_mode=HVACMode.HEAT,
+            desired_target_temperature=21.0,
+            desired_target_humidity=50.0,
+            desired_fan_mode="high",
+            desired_preset_mode="eco",
+            desired_swing_mode="on",
+            desired_swing_horizontal_mode="left_right",
+        )
+        assert "set_hvac_mode" in result
+        assert "set_temperature" in result
+        assert "set_humidity" in result
+        assert "set_fan_mode" in result
+        assert "set_preset_mode" in result
+        assert "set_swing_mode" in result
+        assert "set_swing_horizontal_mode" in result
+
+
+@pytest.mark.unit
+class TestEffectiveRangeCorrection:
+    def test_eff_low_and_high_provided_uses_effective_range(self) -> None:
+        """When effective range values differ from desired, they are used for corrections."""
+        state = _state(HVACMode.HEAT_COOL, {"target_temp_low": 18.0, "target_temp_high": 24.0})
+        result = _corrections(
+            underlying_state=state,
+            desired_hvac_mode=HVACMode.HEAT_COOL,
+            desired_target_temperature_low=18.0,
+            desired_target_temperature_high=24.0,
+            effective_target_low=20.0,   # offset-adjusted
+            effective_target_high=26.0,  # offset-adjusted
+        )
+        assert "set_temperature" in result
+        assert result["set_temperature"]["target_temp_low"] == 20.0
+        assert result["set_temperature"]["target_temp_high"] == 26.0

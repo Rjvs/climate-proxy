@@ -52,6 +52,8 @@
     },
     "error": {
       "entity_not_found": "The selected climate entity does not exist. Please check your selection.",
+      "entity_not_climate": "The selected entity is not a climate entity. Please select a real thermostat.",
+      "entity_is_proxy": "The selected entity is itself a Climate Proxy. Chaining proxies is not supported.",
       "unknown": "An unexpected error occurred."
     },
     "abort": {

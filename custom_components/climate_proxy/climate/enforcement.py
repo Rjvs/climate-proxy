@@ -26,7 +26,7 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE
 
-from ..const import HUMIDITY_TOLERANCE, TEMPERATURE_TOLERANCE
+from ..const import HUMIDITY_TOLERANCE, LOGGER, TEMPERATURE_TOLERANCE
 
 if TYPE_CHECKING:
     from homeassistant.core import State
@@ -81,16 +81,33 @@ def get_climate_corrections(
 
     if not mode_is_off and eff_temp is not None:
         actual_temp = attrs.get("temperature")
-        if actual_temp is None or abs(float(actual_temp) - eff_temp) > TEMPERATURE_TOLERANCE:
+        try:
+            actual_temp_f = float(actual_temp) if actual_temp is not None else None
+        except (TypeError, ValueError):
+            LOGGER.debug(
+                "Non-numeric temperature '%s' on %s — forcing correction",
+                actual_temp,
+                underlying_state.entity_id,
+            )
+            actual_temp_f = None
+        if actual_temp_f is None or abs(actual_temp_f - eff_temp) > TEMPERATURE_TOLERANCE:
             corrections[SERVICE_SET_TEMPERATURE] = {ATTR_TEMPERATURE: eff_temp}
     elif not mode_is_off and eff_low is not None and eff_high is not None:
         actual_low = attrs.get(ATTR_TARGET_TEMP_LOW)
         actual_high = attrs.get(ATTR_TARGET_TEMP_HIGH)
+        try:
+            actual_low_f = float(actual_low) if actual_low is not None else None
+        except (TypeError, ValueError):
+            actual_low_f = None
+        try:
+            actual_high_f = float(actual_high) if actual_high is not None else None
+        except (TypeError, ValueError):
+            actual_high_f = None
         needs_correction = (
-            actual_low is None
-            or actual_high is None
-            or abs(float(actual_low) - eff_low) > TEMPERATURE_TOLERANCE
-            or abs(float(actual_high) - eff_high) > TEMPERATURE_TOLERANCE
+            actual_low_f is None
+            or actual_high_f is None
+            or abs(actual_low_f - eff_low) > TEMPERATURE_TOLERANCE
+            or abs(actual_high_f - eff_high) > TEMPERATURE_TOLERANCE
         )
         if needs_correction:
             corrections[SERVICE_SET_TEMPERATURE] = {
@@ -101,7 +118,16 @@ def get_climate_corrections(
     # Target humidity
     if not mode_is_off and desired_target_humidity is not None:
         actual_humidity = attrs.get(ATTR_HUMIDITY)
-        if actual_humidity is None or abs(float(actual_humidity) - desired_target_humidity) > HUMIDITY_TOLERANCE:
+        try:
+            actual_humidity_f = float(actual_humidity) if actual_humidity is not None else None
+        except (TypeError, ValueError):
+            LOGGER.debug(
+                "Non-numeric humidity '%s' on %s — forcing correction",
+                actual_humidity,
+                underlying_state.entity_id,
+            )
+            actual_humidity_f = None
+        if actual_humidity_f is None or abs(actual_humidity_f - desired_target_humidity) > HUMIDITY_TOLERANCE:
             corrections[SERVICE_SET_HUMIDITY] = {ATTR_HUMIDITY: desired_target_humidity}
 
     # Preset mode

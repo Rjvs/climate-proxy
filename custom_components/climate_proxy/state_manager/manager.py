@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.util import dt as dt_util
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -53,6 +55,9 @@ class ClimateProxyStateManager:
         # Debounce: set True while pushing a correction to prevent feedback loops
         self._correcting = False
         self._debounce_task: asyncio.Task | None = None
+
+        # Timestamp of last correction push (for diagnostics)
+        self.last_correction_time: datetime | None = None
 
     @property
     def debounce_active(self) -> bool:
@@ -152,6 +157,7 @@ class ClimateProxyStateManager:
             return
         corrections = self.climate_proxy_entity.get_climate_corrections(underlying_state)
         if corrections:
+            self.last_correction_time = dt_util.utcnow()
             await self._start_debounce()
             for service, kwargs in corrections.items():
                 await self.hass.services.async_call(

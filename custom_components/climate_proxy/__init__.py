@@ -108,3 +108,18 @@ async def async_unload_entry(
     """Unload a config entry — tear down subscriptions and platform entities."""
     await entry.runtime_data.state_manager.async_teardown()
     return await hass.config_entries.async_unload_platforms(entry, entry.runtime_data.active_platforms)
+
+
+async def async_migrate_entry(
+    hass: HomeAssistant,
+    config_entry: ClimateProxyConfigEntry,
+) -> bool:
+    """Migrate old config entry to new version."""
+    LOGGER.debug(
+        "Migrating config entry %s from version %s.%s",
+        config_entry.entry_id,
+        config_entry.version,
+        config_entry.minor_version,
+    )
+    # v1.1 is current — nothing to migrate yet
+    return True
